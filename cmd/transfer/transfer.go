@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/republicprotocol/republic-go/dispatch"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/republicprotocol/co-go"
 	eth "github.com/republicprotocol/eth-go"
 	"github.com/republicprotocol/republic-go/crypto"
 )
@@ -23,8 +23,8 @@ import (
 // Where xxxxxxxx is the passphrase to unlock the keystore.
 
 // Keystore paths for testing.
-// trader := ./keystores/keystore-0.json
-// genesis := ./keystores/nightly-keystore.json
+// trader := ../keystores/keystore-0.json
+// genesis := ../keystores/nightly-keystore.json
 
 // Addresses to test with.
 // traderAddr := "3a5e0b1158ca9ce861a80c3049d347a3f1825db0"
@@ -32,11 +32,13 @@ import (
 
 func main() {
 
-	// Parse command-line arguments
+	// Check if all expected values were provided
 	if len(os.Args) != 5 {
 		fmt.Println("\nInvalid number of arguments!\x1b[0m \n\nPlease enter a \x1b[37;1mamount\x1b[0m, the \x1b[37;1mkeystore path\x1b[0m, a \x1b[37;1mpassphrase\x1b[0m to unlock the keystore, and \x1b[37;1mthe ethereum address\x1b[0m of the account to transfer value to.\n\n\x1b[31;1m[Usage] go run transfer.go <amount> <path/to/keystore/file> <passphrase> <ethereum-address-of-receiver>\x1b[0m")
 		return
 	}
+
+	// Parse command-line arguments
 	amount, err := strconv.ParseFloat(os.Args[1], 64)
 	if err != nil {
 		fmt.Println("\n\x1b[31;1mPlease enter a valid value for amount\x1b[0m")
@@ -86,7 +88,7 @@ func main() {
 
 	to := common.HexToAddress(addr)
 
-	dispatch.CoForAll([]int{1, 2}, func(i int) {
+	co.ParForAll([]int{1, 2}, func(i int) {
 		// Transfer `x` amount of Eth to the specified address
 		value, _ := big.NewFloat(amount * math.Pow10(18)).Int(nil)
 		if err := account.Transfer(ctx, to, value, int64(i+1)); err != nil {
