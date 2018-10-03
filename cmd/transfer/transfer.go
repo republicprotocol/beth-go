@@ -34,7 +34,13 @@ func main() {
 
 	// Check if all expected values were provided
 	if len(os.Args) != 5 {
-		fmt.Println("\nInvalid number of arguments!\x1b[0m \n\nPlease enter a \x1b[37;1mamount\x1b[0m, the \x1b[37;1mkeystore path\x1b[0m, a \x1b[37;1mpassphrase\x1b[0m to unlock the keystore, and \x1b[37;1mthe ethereum address\x1b[0m of the account to transfer value to.\n\n\x1b[31;1m[Usage] go run transfer.go <amount> <path/to/keystore/file> <passphrase> <ethereum-address-of-receiver>\x1b[0m")
+		fmt.Println("\nInvalid number of arguments!\x1b[0m " +
+			"\n\nPlease enter a \x1b[37;1mamount\x1b[0m, " +
+			"the \x1b[37;1mkeystore path\x1b[0m, a \x1b[37;1mpassphrase\x1b[0m " +
+			"to unlock the keystore, and \x1b[37;1mthe ethereum address\x1b[0m " +
+			"of the account to transfer value to.\n\n\x1b" +
+			"[31;1m[Usage] go run transfer.go <amount> <path/to/keystore/file> " +
+			"<passphrase> <ethereum-address-of-receiver>\x1b[0m")
 		return
 	}
 

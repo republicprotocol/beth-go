@@ -34,7 +34,10 @@ func Connect(url string) (Client, error) {
 
 // WaitMined waits for tx to be mined on the blockchain.
 // It stops waiting when the context is canceled.
-func (client *Client) WaitMined(ctx context.Context, tx *types.Transaction) (*types.Receipt, error) {
+func (client *Client) WaitMined(
+	ctx context.Context,
+	tx *types.Transaction,
+) (*types.Receipt, error) {
 	return bind.WaitMined(ctx, client.ethClient, tx)
 }
 
@@ -88,9 +91,13 @@ func (client *Client) BalanceOf(
 	callOpts *bind.CallOpts,
 ) (*big.Int, error) {
 
-	val, err := client.Get(ctx, callOpts, func(*bind.CallOpts) (interface{}, error) {
-		return client.ethClient.BalanceAt(ctx, addr, nil)
-	})
+	val, err := client.Get(
+		ctx,
+		callOpts,
+		func(*bind.CallOpts) (interface{}, error) {
+			return client.ethClient.BalanceAt(ctx, addr, nil)
+		},
+	)
 	if err != nil {
 		return big.NewInt(0), err
 	}
@@ -98,7 +105,10 @@ func (client *Client) BalanceOf(
 }
 
 // GetBlockNumberByTxHash retrieves tx's block number using the tx hash.
-func (client *Client) GetBlockNumberByTxHash(ctx context.Context, hash string) (*big.Int, error) {
+func (client *Client) GetBlockNumberByTxHash(
+	ctx context.Context,
+	hash string,
+) (*big.Int, error) {
 
 	type Result struct {
 		BlockNumber string `json:"blockNumber,omitempty"`
@@ -108,7 +118,8 @@ func (client *Client) GetBlockNumberByTxHash(ctx context.Context, hash string) (
 	}
 	var data JSONResponse
 
-	var jsonStr = `{"jsonrpc":"2.0","method":"eth_getTransactionByHash","params":["` + hash + `"],"id":1}`
+	var jsonStr = `{"jsonrpc":"2.0","method":"eth_getTransactionByHash",` +
+		`"params":["` + hash + `"],"id":1}`
 
 	// Keep retrying until a block number is returned or until context times out
 	for {
@@ -140,7 +151,10 @@ func (client *Client) GetBlockNumberByTxHash(ctx context.Context, hash string) (
 
 // GetCurrentBlockNumber will retrieve the current block that is confirmed by
 // infura.
-func (client *Client) GetCurrentBlockNumber(ctx context.Context) (*big.Int, error) {
+func (client *Client) GetCurrentBlockNumber(
+	ctx context.Context,
+) (*big.Int, error) {
+
 	type Result struct {
 		Number string `json:"number,omitempty"`
 	}
@@ -149,7 +163,8 @@ func (client *Client) GetCurrentBlockNumber(ctx context.Context) (*big.Int, erro
 	}
 	var data JSONResponse
 
-	var jsonStr = `{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest", false],"id":1}`
+	var jsonStr = `{"jsonrpc":"2.0","method":"eth_getBlockByNumber",` +
+		`"params":["latest", false],"id":1}`
 
 	// Keep retrying until a block number is returned or until context times out
 	for {
