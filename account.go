@@ -77,53 +77,6 @@ func (account *Account) Address() common.Address {
 	return account.transactOpts.From
 }
 
-// Transfer transfers eth from the account to an ethereum address.
-func (account *Account) Transfer(
-	ctx context.Context,
-	to common.Address,
-	value *big.Int,
-	confirmBlocks int64,
-) error {
-
-	// Pre-condition check: Check if the account has enough balance
-	preConditionCheck := func() bool {
-		accountBalance, err := account.client.BalanceOf(
-			ctx,
-			account.Address(),
-			&account.callOpts,
-		)
-		if err != nil || accountBalance.Cmp(value) <= 0 {
-			return false
-		}
-
-		return true
-	}
-
-	// Transaction: Transfer eth to address
-	f := func(transactOpts bind.TransactOpts) (*types.Transaction, error) {
-		bound := bind.NewBoundContract(
-			to,
-			abi.ABI{},
-			nil,
-			account.client.ethClient,
-			nil,
-		)
-
-		transactor := &bind.TransactOpts{
-			From:     transactOpts.From,
-			Nonce:    transactOpts.Nonce,
-			Signer:   transactOpts.Signer,
-			Value:    value,
-			GasPrice: transactOpts.GasPrice,
-			GasLimit: 21000,
-			Context:  transactOpts.Context,
-		}
-		return bound.Transfer(transactor)
-	}
-
-	return account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
-}
-
 // Transact attempts to execute a transaction on the Ethereum blockchain with
 // the retry functionality.
 func (account *Account) Transact(
@@ -243,6 +196,53 @@ func (account *Account) Transact(
 		}
 	}
 	return nil
+}
+
+// Transfer transfers eth from the account to an ethereum address.
+func (account *Account) Transfer(
+	ctx context.Context,
+	to common.Address,
+	value *big.Int,
+	confirmBlocks int64,
+) error {
+
+	// Pre-condition check: Check if the account has enough balance
+	preConditionCheck := func() bool {
+		accountBalance, err := account.client.BalanceOf(
+			ctx,
+			account.Address(),
+			&account.callOpts,
+		)
+		if err != nil || accountBalance.Cmp(value) <= 0 {
+			return false
+		}
+
+		return true
+	}
+
+	// Transaction: Transfer eth to address
+	f := func(transactOpts bind.TransactOpts) (*types.Transaction, error) {
+		bound := bind.NewBoundContract(
+			to,
+			abi.ABI{},
+			nil,
+			account.client.ethClient,
+			nil,
+		)
+
+		transactor := &bind.TransactOpts{
+			From:     transactOpts.From,
+			Nonce:    transactOpts.Nonce,
+			Signer:   transactOpts.Signer,
+			Value:    value,
+			GasPrice: transactOpts.GasPrice,
+			GasLimit: 21000,
+			Context:  transactOpts.Context,
+		}
+		return bound.Transfer(transactor)
+	}
+
+	return account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
 }
 
 // retryNonceTx retries transaction execution on the blockchain until nonce
