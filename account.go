@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
-	"log"
 	"math/big"
 	"strings"
 	"sync"
@@ -66,7 +65,7 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (*Account, error) {
 	account.mu.Lock()
 	defer account.mu.Unlock()
 
-	// Retrieve and update transactOpts with the current 'fast' gas price
+	// Retrieve and update transactOpts with current fast gas price
 	account.updateGasPrice()
 
 	return account, nil
@@ -87,16 +86,15 @@ func (account *Account) Transfer(
 
 	// Pre-condition check: Check if the account has enough balance
 	preConditionCheck := func() bool {
-
 		accountBalance, err := account.client.BalanceOf(
 			ctx,
 			account.Address(),
 			&account.callOpts,
 		)
+
 		if err != nil || accountBalance.Cmp(value) <= 0 {
 			return false
 		}
-
 		return true
 	}
 
@@ -125,17 +123,15 @@ func (account *Account) Transfer(
 	return account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
 }
 
-// Transact attempts to execute a transaction on the Ethereum blockchain with
-// the retry functionality.
+// Transact does a transaction on the Ethereum blockchain.
 func (account *Account) Transact(
 	ctx context.Context,
 	preConditionCheck func() bool,
 	f func(bind.TransactOpts) (*types.Transaction, error),
 	postConditionCheck func(ctx context.Context) bool,
-	waitForBlocks int64,
+	confirmBlocks int64,
 ) error {
 
-	// Do not proceed any further if the (not nil) pre-condition check fails
 	if preConditionCheck != nil && !preConditionCheck() {
 		return ErrorPreConditionCheckFailed
 	}
@@ -143,20 +139,9 @@ func (account *Account) Transact(
 	sleepDurationMs := time.Duration(1000)
 	var txHash common.Hash
 
-	// Keep retrying 'f' until the post-condition check passes or the context
-	// times out.
 	for {
-
-		// If context is done, return error
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
 		if err := func() error {
 			var err error
-
 			innerCtx, innerCancel := context.WithTimeout(ctx, time.Minute)
 			defer innerCancel()
 
@@ -165,8 +150,6 @@ func (account *Account) Transact(
 
 			account.updateGasPrice()
 
-			// This will attempt to execute 'f' until no nonce error is
-			// returned or if innerCtx times out
 			tx, err := account.retryNonceTx(innerCtx, f)
 			if err != nil {
 				return err
@@ -176,28 +159,20 @@ func (account *Account) Transact(
 			if err != nil {
 				return err
 			}
-
-			// Transaction did not error, proceed to post-condition checks
 			txHash = receipt.TxHash
 			return nil
 
 		}(); err != nil {
-			log.Println(err)
-			continue
+			return err
 		}
 
-		// If post-condition check passes, proceed to wait for a specified
-		// number of blocks to be confirmed after the transaction's block
 		if postConditionCheck == nil || postConditionCheck(ctx) {
 			break
 		}
 
-		// Wait for sometime before attempting to execute the transaction
-		// again. If context is done, return error to indicate that
-		// post-condition failed
 		select {
 		case <-ctx.Done():
-			return ErrorPostConditionCheckFailed
+			return ctx.Err()
 		case <-time.After(sleepDurationMs * time.Millisecond):
 
 		}
@@ -209,32 +184,17 @@ func (account *Account) Transact(
 		}
 	}
 
-	// At this point the transaction executed successfully and the
-	// post-condition check has passed. This means that we can now proceed to
-	// wait for a pre-defined number of blocks to be confirmed on the
-	// blockchain after the transaction's block is confirmed
-
-	// Attempt to get block number of transaction. If context times out, an
-	// error will be returned.
 	blockNumber, err := account.client.GetBlockNumberByTxHash(
 		ctx,
 		txHash.String(),
 	)
-	if err != nil {
-		return err
-	}
 
-	// Attempt to get current block number. If context times out, an error will
-	// be returned.
 	currentBlockNumber, err := account.client.GetCurrentBlockNumber(ctx)
 	if err != nil {
 		return err
 	}
 
-	// Keep getting current block number until it is greater than
-	// 'waitForBlocks' + transaction's block number. If context times out, the
-	// error is returned.
-	for big.NewInt(0).Sub(currentBlockNumber, blockNumber).Cmp(big.NewInt(waitForBlocks)) < 0 {
+	for big.NewInt(0).Sub(currentBlockNumber, blockNumber).Cmp(big.NewInt(confirmBlocks)) < 0 {
 		currentBlockNumber, err = account.client.GetCurrentBlockNumber(ctx)
 		if err != nil {
 			select {
@@ -248,35 +208,24 @@ func (account *Account) Transact(
 	return nil
 }
 
-// RetryNonceTx retries transaction execution on the blockchain until nonce
-// errors are not seen, or until the context times out.
+// RetryNonceTx retries
 func (account *Account) retryNonceTx(
 	ctx context.Context,
 	f func(bind.TransactOpts) (*types.Transaction, error),
 ) (*types.Transaction, error) {
 
 	tx, err := f(account.transactOpts)
-
-	// On successful execution, increment nonce in transactOpts and return
 	if err == nil {
 		account.transactOpts.Nonce.Add(account.transactOpts.Nonce,
 			big.NewInt(1))
 		return tx, nil
 	}
-
-	// Process errors to check for nonce issues
-
-	// If error indicates that nonce is too low, increment nonce and retry
-	if err == core.ErrNonceTooLow ||
-		err == core.ErrReplaceUnderpriced ||
+	if err == core.ErrNonceTooLow || err == core.ErrReplaceUnderpriced ||
 		strings.Contains(err.Error(), "nonce is too low") {
-
 		account.transactOpts.Nonce.Add(account.transactOpts.Nonce,
 			big.NewInt(1))
 		return account.retryNonceTx(ctx, f)
 	}
-
-	// If error indicates that nonce is too low, decrement nonce and retry
 	if err == core.ErrNonceTooHigh {
 		account.transactOpts.Nonce.Sub(account.transactOpts.Nonce,
 			big.NewInt(1))
@@ -287,34 +236,23 @@ func (account *Account) retryNonceTx(
 	// try again for up to 1 minute
 	var nonce uint64
 	for try := 0; try < 60 && strings.Contains(err.Error(), "nonce"); try++ {
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(1 * time.Second):
-		}
-
-		// Get updated nonce and retry 'f'
+		time.Sleep(time.Second)
 		nonce, err = account.client.ethClient.PendingNonceAt(ctx,
 			account.transactOpts.From)
 		if err != nil {
 			continue
 		}
 		account.transactOpts.Nonce = big.NewInt(int64(nonce))
-
 		if tx, err = f(account.transactOpts); err == nil {
 			account.transactOpts.Nonce.Add(account.transactOpts.Nonce,
 				big.NewInt(1))
 			return tx, nil
 		}
 	}
+
 	return tx, err
 }
 
-// updateGasPrice will retrieve the current 'fast' gas price
-// and update the account's transactOpts. This function expects the caller to
-// handle potential data race conditions (i.e. Locking of mutex prior to
-// calling this method)
 func (account *Account) updateGasPrice() {
 	gasPrice := utils.SuggestedGasPrice()
 
