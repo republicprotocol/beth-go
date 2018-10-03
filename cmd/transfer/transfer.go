@@ -19,7 +19,7 @@ import (
 	"github.com/republicprotocol/republic-go/crypto"
 )
 
-// To run: go run transfer.go ../keystores/nightly-keystore.json 1.0 ./keystores/nightly-keystore.json xxxxxxxx 3a5e0b1158ca9ce861a80c3049d347a3f1825db0
+// To run: go run transfer.go ./keystores/nightly-keystore.json 1.0 ./keystores/nightly-keystore.json xxxxxxxx 3a5e0b1158ca9ce861a80c3049d347a3f1825db0
 // Where xxxxxxxx is the passphrase to unlock the keystore.
 
 // Keystore paths for testing.
