@@ -87,7 +87,6 @@ func (account *Account) Transfer(
 
 	// Pre-condition check: Check if the account has enough balance
 	preConditionCheck := func() bool {
-
 		accountBalance, err := account.client.BalanceOf(
 			ctx,
 			account.Address(),
@@ -146,7 +145,6 @@ func (account *Account) Transact(
 	// Keep retrying 'f' until the post-condition check passes or the context
 	// times out.
 	for {
-
 		// If context is done, return error
 		select {
 		case <-ctx.Done():
@@ -180,7 +178,6 @@ func (account *Account) Transact(
 			// Transaction did not error, proceed to post-condition checks
 			txHash = receipt.TxHash
 			return nil
-
 		}(); err != nil {
 			log.Println(err)
 			continue
@@ -248,7 +245,7 @@ func (account *Account) Transact(
 	return nil
 }
 
-// RetryNonceTx retries transaction execution on the blockchain until nonce
+// retryNonceTx retries transaction execution on the blockchain until nonce
 // errors are not seen, or until the context times out.
 func (account *Account) retryNonceTx(
 	ctx context.Context,
@@ -317,7 +314,6 @@ func (account *Account) retryNonceTx(
 // calling this method)
 func (account *Account) updateGasPrice() {
 	gasPrice := utils.SuggestedGasPrice()
-
 	if gasPrice != nil {
 		account.transactOpts.GasPrice = gasPrice
 	}
