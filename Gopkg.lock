@@ -3,11 +3,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:40a3716965c1e46688a3290d8043f5bbdfbcb218e4c1327384049a7ec2df92e0"
+  digest = "1:495c7006c2f48b705f0d89fd8449a2ae70622bb748788d9d17caafa65a6769f9"
   name = "github.com/aristanetworks/goarista"
   packages = ["monotime"]
   pruneopts = "T"
-  revision = "ff33da284e760fcdb03c33d37a719e5ed30ba844"
+  revision = "33151c4543a79b013e8e6799ef45b2ba88c3cd1c"
 
 [[projects]]
   branch = "master"
@@ -238,11 +238,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2f32d0c33fdedffa0a388f4efece40ac66445c64c79ed48361c320e177e63562"
+  digest = "1:b3d18cdeba3ba2a0812fd0cc6a2432da37f36b525606e5b7ba565a46a94d54aa"
   name = "golang.org/x/net"
   packages = ["websocket"]
   pruneopts = "T"
-  revision = "4dfa2610cdf3b287375bbba5b8f2a14d3b01d8de"
+  revision = "f5e5bdd778241bfefa8627f7124c39cd6ad8d74f"
 
 [[projects]]
   branch = "master"
@@ -257,7 +257,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:eda160d915e60e38ac8d0724cb842a8b66991b6cbfa9c5ea58f4d698b71c11a7"
+  digest = "1:1dbe58cb249d06ac7641b591976dc8c6d1ea160e1d1a7cbcb6e84fcbf602850f"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -265,7 +265,7 @@
     "internal/fastwalk",
   ]
   pruneopts = "T"
-  revision = "008d18139cb7769f4e539d7aecda5996c7b7217b"
+  revision = "2f84ea8ef8720b418a1414ed610df828e1db1b3b"
 
 [[projects]]
   digest = "1:3ccd10c863188cfe0d936fcfe6a055c95362e43af8e7039e33baade846928e74"
