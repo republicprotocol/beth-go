@@ -14,16 +14,16 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	eth "github.com/republicprotocol/beth-go"
+	beth "github.com/republicprotocol/beth-go"
 	"github.com/republicprotocol/co-go"
 	"github.com/republicprotocol/republic-go/crypto"
 )
 
-// To run: go run transfer.go ../keystores/nightly-keystore.json 1.0 ./keystores/nightly-keystore.json xxxxxxxx 3a5e0b1158ca9ce861a80c3049d347a3f1825db0
+// To run: go run transfer.go 1 ./keystores/nightly-keystore.json xxxxxxxx 3a5e0b1158ca9ce861a80c3049d347a3f1825db0
 // Where xxxxxxxx is the passphrase to unlock the keystore.
 
 // Keystore paths for testing.
-// trader := ../keystores/keystore-0.json
+// trader := ../keystores/kovan-keystore.json
 // genesis := ../keystores/nightly-keystore.json
 
 // Addresses to test with.
@@ -82,7 +82,7 @@ func main() {
 	}
 
 	// Get a user account to perform transactions
-	account, err := eth.NewUserAccount("https://kovan.infura.io", privKey)
+	account, err := beth.NewAccount("https://kovan.infura.io", privKey)
 	if err != nil {
 		log.Println(err)
 		return
@@ -94,7 +94,7 @@ func main() {
 
 	to := common.HexToAddress(addr)
 
-	co.ParForAll([]int{1, 2}, func(i int) {
+	co.ParForAll([]int{1}, func(i int) {
 		// Transfer `x` amount of Eth to the specified address
 		value, _ := big.NewFloat(amount * math.Pow10(18)).Int(nil)
 		if err := account.Transfer(ctx, to, value, int64(i+1)); err != nil {

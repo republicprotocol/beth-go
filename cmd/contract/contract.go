@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	eth "github.com/republicprotocol/beth-go"
+	beth "github.com/republicprotocol/beth-go"
 	"github.com/republicprotocol/beth-go/cmd/contract/bindings"
 	"github.com/republicprotocol/republic-go/crypto"
 )
@@ -37,7 +37,7 @@ func main() {
 	integerOperations(account, contract)
 }
 
-func newAccount() (eth.UserAccount, *bindings.Bethtest, error) {
+func newAccount() (beth.Account, *bindings.Bethtest, error) {
 
 	// Check if all expected values were provided
 	if len(os.Args) != 4 {
@@ -88,7 +88,7 @@ func newAccount() (eth.UserAccount, *bindings.Bethtest, error) {
 	}
 
 	// Return a user account to perform transactions
-	account, err := eth.NewUserAccount(fmt.Sprintf("https://%s.infura.io", network), privKey)
+	account, err := beth.NewAccount(fmt.Sprintf("https://%s.infura.io", network), privKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -102,7 +102,7 @@ func newAccount() (eth.UserAccount, *bindings.Bethtest, error) {
 	return account, contract, nil
 }
 
-func listOperations(account eth.UserAccount, contract *bindings.Bethtest, n int) {
+func listOperations(account beth.Account, contract *bindings.Bethtest, n int) {
 	// Append random 'n' values to the list
 	values := appendToList(n, contract, account)
 
@@ -110,7 +110,7 @@ func listOperations(account eth.UserAccount, contract *bindings.Bethtest, n int)
 	deleteFromList(values, n, contract, account)
 }
 
-func integerOperations(account eth.UserAccount, contract *bindings.Bethtest) {
+func integerOperations(account beth.Account, contract *bindings.Bethtest) {
 	// Context for 2 minutes
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -125,7 +125,7 @@ func integerOperations(account eth.UserAccount, contract *bindings.Bethtest) {
 	increment(ctx, account, contract, val)
 }
 
-func appendToList(n int, contract *bindings.Bethtest, account eth.UserAccount) []*big.Int {
+func appendToList(n int, contract *bindings.Bethtest, account beth.Account) []*big.Int {
 	// Context
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(n+2)*time.Minute)
 	defer cancel()
@@ -175,7 +175,7 @@ func appendToList(n int, contract *bindings.Bethtest, account eth.UserAccount) [
 	return values
 }
 
-func deleteFromList(values []*big.Int, n int, contract *bindings.Bethtest, account eth.UserAccount) {
+func deleteFromList(values []*big.Int, n int, contract *bindings.Bethtest, account beth.Account) {
 	// Context
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(n+2)*time.Minute)
 	defer cancel()
@@ -225,7 +225,7 @@ func deleteFromList(values []*big.Int, n int, contract *bindings.Bethtest, accou
 	}
 }
 
-func setInt(ctx context.Context, account eth.UserAccount, contract *bindings.Bethtest, val *big.Int) error {
+func setInt(ctx context.Context, account beth.Account, contract *bindings.Bethtest, val *big.Int) error {
 
 	fmt.Printf("\n\x1b[37;1mSetting integer %v in the contract\n\x1b[0m", val.String())
 
@@ -246,7 +246,7 @@ func setInt(ctx context.Context, account eth.UserAccount, contract *bindings.Bet
 	return account.Transact(ctx, nil, f, postCondition, 1)
 }
 
-func increment(ctx context.Context, account eth.UserAccount, contract *bindings.Bethtest, val *big.Int) error {
+func increment(ctx context.Context, account beth.Account, contract *bindings.Bethtest, val *big.Int) error {
 
 	fmt.Printf("\n\x1b[37;1mIncrementing %v in the contract\x1b[0m\n", val.String())
 
@@ -269,7 +269,7 @@ func increment(ctx context.Context, account eth.UserAccount, contract *bindings.
 	return account.Transact(ctx, nil, f, postCondition, 2)
 }
 
-func elementExists(ctx context.Context, conn eth.Client, contract *bindings.Bethtest, val *big.Int) (exists bool) {
+func elementExists(ctx context.Context, conn beth.Client, contract *bindings.Bethtest, val *big.Int) (exists bool) {
 	exists = false
 	_ = conn.Get(ctx, &bind.CallOpts{}, func(callOpts *bind.CallOpts) (err error) {
 		_, exists, err = contract.Get(callOpts, val)
@@ -278,7 +278,7 @@ func elementExists(ctx context.Context, conn eth.Client, contract *bindings.Beth
 	return
 }
 
-func size(ctx context.Context, conn eth.Client, contract *bindings.Bethtest) (size *big.Int, err error) {
+func size(ctx context.Context, conn beth.Client, contract *bindings.Bethtest) (size *big.Int, err error) {
 	size = big.NewInt(0)
 	err = conn.Get(ctx, &bind.CallOpts{}, func(callOpts *bind.CallOpts) (err error) {
 		size, err = contract.Size(callOpts)
@@ -287,7 +287,7 @@ func size(ctx context.Context, conn eth.Client, contract *bindings.Bethtest) (si
 	return
 }
 
-func read(ctx context.Context, conn eth.Client, contract *bindings.Bethtest) (newVal *big.Int, err error) {
+func read(ctx context.Context, conn beth.Client, contract *bindings.Bethtest) (newVal *big.Int, err error) {
 	err = conn.Get(ctx, &bind.CallOpts{}, func(callOpts *bind.CallOpts) (err error) {
 		newVal, err = contract.Read(callOpts)
 		return
