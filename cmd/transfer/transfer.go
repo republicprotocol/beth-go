@@ -14,8 +14,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	eth "github.com/republicprotocol/beth-go"
 	"github.com/republicprotocol/co-go"
-	eth "github.com/republicprotocol/eth-go"
 	"github.com/republicprotocol/republic-go/crypto"
 )
 
