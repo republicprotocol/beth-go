@@ -3,8 +3,8 @@ package utils
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 )
@@ -22,36 +22,37 @@ func SendRequest(ctx context.Context, url string, request string) ([]byte, error
 		case <-time.After(5 * time.Millisecond):
 		}
 
-		// Create a new http  POST request
+		// Create a new http POST request
 		req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(request)))
 		if err != nil {
 			continue
 		}
 
+		// Send http POST request
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
 			continue
 		}
 
-		// Read the response status
-		if resp.StatusCode != http.StatusOK {
-			if resp.Body != nil {
-				resp.Body.Close()
-			}
-			continue
-		}
+		// Decode response body
+		body, err := func() ([]byte, error) {
+			defer resp.Body.Close()
 
-		if resp.Body != nil {
-			// Get the result
-			var body []byte
-			if body, err = ioutil.ReadAll(resp.Body); err == nil {
-				resp.Body.Close()
-				return body, nil
+			// Check status
+			if resp.StatusCode != http.StatusOK {
+				return nil, fmt.Errorf("unexpected status %v", resp.StatusCode)
 			}
-			log.Printf("cannot unmarshal: %v", err)
+			// Check body
+			if resp.Body != nil {
+				return ioutil.ReadAll(resp.Body)
+			}
+			return nil, fmt.Errorf("response body is nil")
+		}()
+		if err != nil {
+			fmt.Printf("[error] (infura) %v", err)
 			continue
 		}
-		continue
+		return body, nil
 	}
 }

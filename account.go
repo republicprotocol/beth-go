@@ -1,4 +1,4 @@
-package eth
+package beth
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/republicprotocol/eth-go/utils"
+	"github.com/republicprotocol/beth-go/utils"
 )
 
 // ErrorPreConditionCheckFailed indicates that the pre-condition for executing

@@ -1,4 +1,4 @@
-package eth
+package beth
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/republicprotocol/eth-go/utils"
+	"github.com/republicprotocol/beth-go/utils"
 )
 
 // Client will have a connection to an ethereum client (specified by the url)

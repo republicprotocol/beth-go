@@ -15,8 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	eth "github.com/republicprotocol/eth-go"
-	"github.com/republicprotocol/eth-go/cmd/contract/bindings"
+	eth "github.com/republicprotocol/beth-go"
+	"github.com/republicprotocol/beth-go/cmd/contract/bindings"
 	"github.com/republicprotocol/republic-go/crypto"
 )
 
