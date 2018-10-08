@@ -2,6 +2,7 @@ package eth
 
 import (
 	"context"
+	"encoding/json"
 	"math/big"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 // Client will have a connection to an ethereum client (specified by the url)
 type Client struct {
-	ethClient *ethclient.Client
+	EthClient *ethclient.Client
 	url       string
 }
 
@@ -27,26 +28,19 @@ func Connect(url string) (Client, error) {
 	}
 
 	return Client{
-		ethClient: ethClient,
+		EthClient: ethClient,
 		url:       url,
 	}, nil
 }
 
 // WaitMined waits for tx to be mined on the blockchain.
 // It stops waiting when the context is canceled.
-func (client *Client) WaitMined(
-	ctx context.Context,
-	tx *types.Transaction,
-) (*types.Receipt, error) {
-	return bind.WaitMined(ctx, client.ethClient, tx)
+func (client *Client) WaitMined(ctx context.Context, tx *types.Transaction) (*types.Receipt, error) {
+	return bind.WaitMined(ctx, client.EthClient, tx)
 }
 
 // Get will perform a read-only transaction on the ethereum blockchain.
-func (client *Client) Get(
-	ctx context.Context,
-	callOpts *bind.CallOpts,
-	f func(*bind.CallOpts) (interface{}, error),
-) (val interface{}, err error) {
+func (client *Client) Get(ctx context.Context, callOpts *bind.CallOpts, f func(*bind.CallOpts) error) (err error) {
 
 	sleepDurationMs := time.Duration(1000)
 
@@ -56,13 +50,13 @@ func (client *Client) Get(
 		select {
 		case <-ctx.Done():
 			if err == nil {
-				return val, ctx.Err()
+				return ctx.Err()
 			}
 			return
 		default:
 		}
 
-		if val, err = f(callOpts); err == nil {
+		if err = f(callOpts); err == nil {
 			return
 		}
 
@@ -70,7 +64,7 @@ func (client *Client) Get(
 		select {
 		case <-ctx.Done():
 			if err == nil {
-				return val, ctx.Err()
+				return ctx.Err()
 			}
 			return
 		case <-time.After(sleepDurationMs * time.Millisecond):
@@ -85,30 +79,16 @@ func (client *Client) Get(
 }
 
 // BalanceOf returns the ethereum balance of the addr passed.
-func (client *Client) BalanceOf(
-	ctx context.Context,
-	addr common.Address,
-	callOpts *bind.CallOpts,
-) (*big.Int, error) {
-
-	val, err := client.Get(
-		ctx,
-		callOpts,
-		func(*bind.CallOpts) (interface{}, error) {
-			return client.ethClient.BalanceAt(ctx, addr, nil)
-		},
-	)
-	if err != nil {
-		return big.NewInt(0), err
-	}
-	return val.(*big.Int), nil
+func (client *Client) BalanceOf(ctx context.Context, addr common.Address, callOpts *bind.CallOpts) (val *big.Int, err error) {
+	err = client.Get(ctx, callOpts, func(*bind.CallOpts) (err error) {
+		val, err = client.EthClient.BalanceAt(ctx, addr, nil)
+		return
+	})
+	return
 }
 
 // GetBlockNumberByTxHash retrieves tx's block number using the tx hash.
-func (client *Client) GetBlockNumberByTxHash(
-	ctx context.Context,
-	hash string,
-) (*big.Int, error) {
+func (client *Client) GetBlockNumberByTxHash(ctx context.Context, hash string) (*big.Int, error) {
 
 	type Result struct {
 		BlockNumber string `json:"blockNumber,omitempty"`
@@ -129,13 +109,13 @@ func (client *Client) GetBlockNumberByTxHash(
 		default:
 		}
 
-		response, err := utils.SendRequest(ctx, client.url, jsonStr, data)
+		response, err := utils.SendRequest(ctx, client.url, jsonStr)
 		if err != nil {
 			continue
 		}
-		data = response.(JSONResponse)
+		err = json.Unmarshal(response, &data)
 
-		if data.Result == (Result{}) || data.Result.BlockNumber == "" {
+		if err != nil || data.Result == (Result{}) || data.Result.BlockNumber == "" {
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -151,9 +131,7 @@ func (client *Client) GetBlockNumberByTxHash(
 
 // GetCurrentBlockNumber will retrieve the current block that is confirmed by
 // infura.
-func (client *Client) GetCurrentBlockNumber(
-	ctx context.Context,
-) (*big.Int, error) {
+func (client *Client) GetCurrentBlockNumber(ctx context.Context) (*big.Int, error) {
 
 	type Result struct {
 		Number string `json:"number,omitempty"`
@@ -174,13 +152,13 @@ func (client *Client) GetCurrentBlockNumber(
 		default:
 		}
 
-		response, err := utils.SendRequest(ctx, client.url, jsonStr, data)
+		response, err := utils.SendRequest(ctx, client.url, jsonStr)
 		if err != nil {
 			continue
 		}
-		data = response.(JSONResponse)
+		err = json.Unmarshal(response, &data)
 
-		if data.Result == (Result{}) || data.Result.Number == "" {
+		if err != nil || data.Result == (Result{}) || data.Result.Number == "" {
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()

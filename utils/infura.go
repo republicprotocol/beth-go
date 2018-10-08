@@ -3,7 +3,8 @@ package utils
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 )
@@ -15,8 +16,7 @@ func SendRequest(
 	ctx context.Context,
 	url string,
 	request string,
-	data interface{},
-) (interface{}, error) {
+) ([]byte, error) {
 
 	// Retry until a valid response is returned or until context times out
 	for {
@@ -50,17 +50,16 @@ func SendRequest(
 			continue
 		}
 
-		// Get the result
-		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-			if resp.Body != nil {
+		if resp.Body != nil {
+			// Get the result
+			var body []byte
+			if body, err = ioutil.ReadAll(resp.Body); err == nil {
 				resp.Body.Close()
+				return body, nil
 			}
+			log.Printf("cannot unmarshal: %v", err)
 			continue
 		}
-
-		if resp.Body != nil {
-			resp.Body.Close()
-		}
-		return data, nil
+		continue
 	}
 }

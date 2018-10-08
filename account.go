@@ -47,7 +47,7 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (*Account, error) {
 	transactOpts := *bind.NewKeyedTransactor(privateKey)
 
 	// Retrieve nonce and update transactOpts.
-	nonce, err := client.ethClient.PendingNonceAt(
+	nonce, err := client.EthClient.PendingNonceAt(
 		context.Background(),
 		transactOpts.From)
 	if err != nil {
@@ -77,18 +77,17 @@ func (account *Account) Address() common.Address {
 	return account.transactOpts.From
 }
 
+// EthClient returns the ethereum client that the account is connected to.
+func (account *Account) EthClient() Client {
+	return account.client
+}
+
 // Transact attempts to execute a transaction on the Ethereum blockchain with
 // the retry functionality.
-func (account *Account) Transact(
-	ctx context.Context,
-	preConditionCheck func() bool,
-	f func(bind.TransactOpts) (*types.Transaction, error),
-	postConditionCheck func(ctx context.Context) bool,
-	waitForBlocks int64,
-) error {
+func (account *Account) Transact(ctx context.Context, preConditionCheck func(ctx context.Context) bool, f func(bind.TransactOpts) (*types.Transaction, error), postConditionCheck func(ctx context.Context) bool, waitForBlocks int64) error {
 
 	// Do not proceed any further if the (not nil) pre-condition check fails
-	if preConditionCheck != nil && !preConditionCheck() {
+	if preConditionCheck != nil && !preConditionCheck(ctx) {
 		return ErrorPreConditionCheckFailed
 	}
 
@@ -108,22 +107,19 @@ func (account *Account) Transact(
 		if err := func() error {
 			var err error
 
-			innerCtx, innerCancel := context.WithTimeout(ctx, time.Minute)
-			defer innerCancel()
-
 			account.mu.Lock()
 			defer account.mu.Unlock()
 
 			account.updateGasPrice()
 
 			// This will attempt to execute 'f' until no nonce error is
-			// returned or if innerCtx times out
-			tx, err := account.retryNonceTx(innerCtx, f)
+			// returned or if ctx times out
+			tx, err := account.retryNonceTx(ctx, f)
 			if err != nil {
 				return err
 			}
 
-			receipt, err := account.client.WaitMined(innerCtx, tx)
+			receipt, err := account.client.WaitMined(ctx, tx)
 			if err != nil {
 				return err
 			}
@@ -166,10 +162,7 @@ func (account *Account) Transact(
 
 	// Attempt to get block number of transaction. If context times out, an
 	// error will be returned.
-	blockNumber, err := account.client.GetBlockNumberByTxHash(
-		ctx,
-		txHash.String(),
-	)
+	blockNumber, err := account.client.GetBlockNumberByTxHash(ctx, txHash.String())
 	if err != nil {
 		return err
 	}
@@ -199,36 +192,20 @@ func (account *Account) Transact(
 }
 
 // Transfer transfers eth from the account to an ethereum address.
-func (account *Account) Transfer(
-	ctx context.Context,
-	to common.Address,
-	value *big.Int,
-	confirmBlocks int64,
-) error {
+func (account *Account) Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) error {
 
 	// Pre-condition check: Check if the account has enough balance
-	preConditionCheck := func() bool {
-		accountBalance, err := account.client.BalanceOf(
-			ctx,
-			account.Address(),
-			&account.callOpts,
-		)
+	preConditionCheck := func(ctx context.Context) bool {
+		accountBalance, err := account.client.BalanceOf(ctx, account.Address(), &account.callOpts)
 		if err != nil || accountBalance.Cmp(value) <= 0 {
 			return false
 		}
-
 		return true
 	}
 
 	// Transaction: Transfer eth to address
 	f := func(transactOpts bind.TransactOpts) (*types.Transaction, error) {
-		bound := bind.NewBoundContract(
-			to,
-			abi.ABI{},
-			nil,
-			account.client.ethClient,
-			nil,
-		)
+		bound := bind.NewBoundContract(to, abi.ABI{}, nil, account.client.EthClient, nil)
 
 		transactor := &bind.TransactOpts{
 			From:     transactOpts.From,
@@ -239,6 +216,7 @@ func (account *Account) Transfer(
 			GasLimit: 21000,
 			Context:  transactOpts.Context,
 		}
+
 		return bound.Transfer(transactor)
 	}
 
@@ -247,36 +225,26 @@ func (account *Account) Transfer(
 
 // retryNonceTx retries transaction execution on the blockchain until nonce
 // errors are not seen, or until the context times out.
-func (account *Account) retryNonceTx(
-	ctx context.Context,
-	f func(bind.TransactOpts) (*types.Transaction, error),
-) (*types.Transaction, error) {
+func (account *Account) retryNonceTx(ctx context.Context, f func(bind.TransactOpts) (*types.Transaction, error)) (*types.Transaction, error) {
 
 	tx, err := f(account.transactOpts)
 
 	// On successful execution, increment nonce in transactOpts and return
 	if err == nil {
-		account.transactOpts.Nonce.Add(account.transactOpts.Nonce,
-			big.NewInt(1))
+		account.transactOpts.Nonce.Add(account.transactOpts.Nonce, big.NewInt(1))
 		return tx, nil
 	}
 
 	// Process errors to check for nonce issues
-
 	// If error indicates that nonce is too low, increment nonce and retry
-	if err == core.ErrNonceTooLow ||
-		err == core.ErrReplaceUnderpriced ||
-		strings.Contains(err.Error(), "nonce is too low") {
-
-		account.transactOpts.Nonce.Add(account.transactOpts.Nonce,
-			big.NewInt(1))
+	if err == core.ErrNonceTooLow || err == core.ErrReplaceUnderpriced || strings.Contains(err.Error(), "nonce is too low") {
+		account.transactOpts.Nonce.Add(account.transactOpts.Nonce, big.NewInt(1))
 		return account.retryNonceTx(ctx, f)
 	}
 
 	// If error indicates that nonce is too low, decrement nonce and retry
 	if err == core.ErrNonceTooHigh {
-		account.transactOpts.Nonce.Sub(account.transactOpts.Nonce,
-			big.NewInt(1))
+		account.transactOpts.Nonce.Sub(account.transactOpts.Nonce, big.NewInt(1))
 		return account.retryNonceTx(ctx, f)
 	}
 
@@ -284,7 +252,6 @@ func (account *Account) retryNonceTx(
 	// try again for up to 1 minute
 	var nonce uint64
 	for try := 0; try < 60 && strings.Contains(err.Error(), "nonce"); try++ {
-
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -292,16 +259,14 @@ func (account *Account) retryNonceTx(
 		}
 
 		// Get updated nonce and retry 'f'
-		nonce, err = account.client.ethClient.PendingNonceAt(ctx,
-			account.transactOpts.From)
+		nonce, err = account.client.EthClient.PendingNonceAt(ctx, account.transactOpts.From)
 		if err != nil {
 			continue
 		}
 		account.transactOpts.Nonce = big.NewInt(int64(nonce))
 
 		if tx, err = f(account.transactOpts); err == nil {
-			account.transactOpts.Nonce.Add(account.transactOpts.Nonce,
-				big.NewInt(1))
+			account.transactOpts.Nonce.Add(account.transactOpts.Nonce, big.NewInt(1))
 			return tx, nil
 		}
 	}
