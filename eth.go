@@ -13,6 +13,8 @@ import (
 // UserAccount which is associated with a private key can read/write to the
 // ethereum blockchain.
 type UserAccount interface {
+	EthClient() Client
+
 	// Address returns the ethereum address of the account holder.
 	Address() common.Address
 
@@ -23,7 +25,7 @@ type UserAccount interface {
 	// first conduct a preConditionCheck and if the check passes, it will
 	// repeatedly execute the transaction followed by a postConditionCheck,
 	// until the transaction passes and the postConditionCheck returns true.
-	Transact(ctx context.Context, preConditionCheck func() bool, f func(bind.TransactOpts) (*types.Transaction, error), postConditionCheck func(ctx context.Context) bool, confirmBlocks int64) error
+	Transact(ctx context.Context, preConditionCheck func(ctx context.Context) bool, f func(bind.TransactOpts) (*types.Transaction, error), postConditionCheck func(ctx context.Context) bool, confirmBlocks int64) error
 }
 
 // NewUserAccount returns an Account object associated with the given private key.
