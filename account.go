@@ -162,14 +162,14 @@ func (account *Account) Transact(ctx context.Context, preConditionCheck func(ctx
 
 	// Attempt to get block number of transaction. If context times out, an
 	// error will be returned.
-	blockNumber, err := account.client.GetBlockNumberByTxHash(ctx, txHash.String())
+	blockNumber, err := account.client.TxBlockNumber(ctx, txHash.String())
 	if err != nil {
 		return err
 	}
 
 	// Attempt to get current block number. If context times out, an error will
 	// be returned.
-	currentBlockNumber, err := account.client.GetCurrentBlockNumber(ctx)
+	currentBlockNumber, err := account.client.CurrentBlockNumber(ctx)
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func (account *Account) Transact(ctx context.Context, preConditionCheck func(ctx
 	// 'waitForBlocks' + transaction's block number. If context times out, the
 	// error is returned.
 	for big.NewInt(0).Sub(currentBlockNumber, blockNumber).Cmp(big.NewInt(waitForBlocks)) < 0 {
-		currentBlockNumber, err = account.client.GetCurrentBlockNumber(ctx)
+		currentBlockNumber, err = account.client.CurrentBlockNumber(ctx)
 		if err != nil {
 			select {
 			case <-ctx.Done():

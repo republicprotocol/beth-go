@@ -11,8 +11,7 @@ import (
 // SuggestedGasPrice returns the fast gas price that ethGasStation
 // recommends for transactions to be mined on Ethereum blockchain.
 func SuggestedGasPrice() *big.Int {
-	request, _ := http.NewRequest("GET",
-		"https://ethgasstation.info/json/ethgasAPI.json", nil)
+	request, _ := http.NewRequest("GET", "https://ethgasstation.info/json/ethgasAPI.json", nil)
 
 	request.Header.Set("Content-Type", "application/json")
 
@@ -24,8 +23,7 @@ func SuggestedGasPrice() *big.Int {
 	}
 
 	if response.StatusCode != http.StatusOK {
-		log.Printf("received status code %v from ethGasStation",
-			response.StatusCode)
+		log.Printf("received status code %v from ethGasStation", response.StatusCode)
 		return nil
 	}
 

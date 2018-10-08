@@ -12,11 +12,7 @@ import (
 // SendRequest will send a request to infura and return the unmarshalled data
 // back to the caller. It will retry until a valid response is returned, or
 // until the context times out.
-func SendRequest(
-	ctx context.Context,
-	url string,
-	request string,
-) ([]byte, error) {
+func SendRequest(ctx context.Context, url string, request string) ([]byte, error) {
 
 	// Retry until a valid response is returned or until context times out
 	for {
@@ -27,11 +23,7 @@ func SendRequest(
 		}
 
 		// Create a new http  POST request
-		req, err := http.NewRequest(
-			"POST",
-			url,
-			bytes.NewBuffer([]byte(request)),
-		)
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(request)))
 		if err != nil {
 			continue
 		}

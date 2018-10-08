@@ -87,8 +87,8 @@ func (client *Client) BalanceOf(ctx context.Context, addr common.Address, callOp
 	return
 }
 
-// GetBlockNumberByTxHash retrieves tx's block number using the tx hash.
-func (client *Client) GetBlockNumberByTxHash(ctx context.Context, hash string) (*big.Int, error) {
+// TxBlockNumber retrieves tx's block number using the tx hash.
+func (client *Client) TxBlockNumber(ctx context.Context, hash string) (*big.Int, error) {
 
 	type Result struct {
 		BlockNumber string `json:"blockNumber,omitempty"`
@@ -129,9 +129,9 @@ func (client *Client) GetBlockNumberByTxHash(ctx context.Context, hash string) (
 	return utils.HexToBigInt(data.Result.BlockNumber)
 }
 
-// GetCurrentBlockNumber will retrieve the current block that is confirmed by
+// CurrentBlockNumber will retrieve the current block that is confirmed by
 // infura.
-func (client *Client) GetCurrentBlockNumber(ctx context.Context) (*big.Int, error) {
+func (client *Client) CurrentBlockNumber(ctx context.Context) (*big.Int, error) {
 
 	type Result struct {
 		Number string `json:"number,omitempty"`
