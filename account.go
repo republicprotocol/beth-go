@@ -26,9 +26,26 @@ var ErrorPreConditionCheckFailed = errors.New("pre-condition check failed")
 // a transaction failed.
 var ErrorPostConditionCheckFailed = errors.New("post-condition check failed")
 
-// Account is the Ethereum account that can perform read and write transactions
-// on the Ethereum blockchain.
-type Account struct {
+// Account is an Ethereum external account that can submit write transactions
+// to the Ethereum blockchain. An Account is defined by its public address and
+// respective private key.
+type Account interface {
+	EthClient() Client
+
+	// Address returns the ethereum address of the account holder.
+	Address() common.Address
+
+	// Transfer sends the specified value of Eth to the given address.
+	Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) error
+
+	// Transact performs a write operation on the Ethereum blockchain. It will
+	// first conduct a preConditionCheck and if the check passes, it will
+	// repeatedly execute the transaction followed by a postConditionCheck,
+	// until the transaction passes and the postConditionCheck returns true.
+	Transact(ctx context.Context, preConditionCheck func(ctx context.Context) bool, f func(bind.TransactOpts) (*types.Transaction, error), postConditionCheck func(ctx context.Context) bool, confirmBlocks int64) error
+}
+
+type account struct {
 	mu     *sync.RWMutex
 	client Client
 
@@ -38,7 +55,7 @@ type Account struct {
 
 // NewAccount returns a user account for the provided private key which is
 // connected to a ethereum client.
-func NewAccount(url string, privateKey *ecdsa.PrivateKey) (*Account, error) {
+func NewAccount(url string, privateKey *ecdsa.PrivateKey) (*account, error) {
 	client, err := Connect(url)
 	if err != nil {
 		return nil, err
@@ -55,7 +72,7 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (*Account, error) {
 	}
 	transactOpts.Nonce = big.NewInt(int64(nonce))
 
-	account := &Account{
+	ethAccount := &account{
 		mu:     new(sync.RWMutex),
 		client: client,
 
@@ -63,28 +80,28 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (*Account, error) {
 		transactOpts: transactOpts,
 	}
 
-	account.mu.Lock()
-	defer account.mu.Unlock()
+	ethAccount.mu.Lock()
+	defer ethAccount.mu.Unlock()
 
 	// Retrieve and update transactOpts with the current 'fast' gas price
-	account.updateGasPrice()
+	ethAccount.updateGasPrice()
 
-	return account, nil
+	return ethAccount, nil
 }
 
 // Address returns the ethereum address of the account.
-func (account *Account) Address() common.Address {
+func (account *account) Address() common.Address {
 	return account.transactOpts.From
 }
 
 // EthClient returns the ethereum client that the account is connected to.
-func (account *Account) EthClient() Client {
+func (account *account) EthClient() Client {
 	return account.client
 }
 
 // Transact attempts to execute a transaction on the Ethereum blockchain with
 // the retry functionality.
-func (account *Account) Transact(ctx context.Context, preConditionCheck func(ctx context.Context) bool, f func(bind.TransactOpts) (*types.Transaction, error), postConditionCheck func(ctx context.Context) bool, waitForBlocks int64) error {
+func (account *account) Transact(ctx context.Context, preConditionCheck func(ctx context.Context) bool, f func(bind.TransactOpts) (*types.Transaction, error), postConditionCheck func(ctx context.Context) bool, waitForBlocks int64) error {
 
 	// Do not proceed any further if the (not nil) pre-condition check fails
 	if preConditionCheck != nil && !preConditionCheck(ctx) {
@@ -192,7 +209,7 @@ func (account *Account) Transact(ctx context.Context, preConditionCheck func(ctx
 }
 
 // Transfer transfers eth from the account to an ethereum address.
-func (account *Account) Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) error {
+func (account *account) Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) error {
 
 	// Pre-condition check: Check if the account has enough balance
 	preConditionCheck := func(ctx context.Context) bool {
@@ -225,7 +242,7 @@ func (account *Account) Transfer(ctx context.Context, to common.Address, value *
 
 // retryNonceTx retries transaction execution on the blockchain until nonce
 // errors are not seen, or until the context times out.
-func (account *Account) retryNonceTx(ctx context.Context, f func(bind.TransactOpts) (*types.Transaction, error)) (*types.Transaction, error) {
+func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOpts) (*types.Transaction, error)) (*types.Transaction, error) {
 
 	tx, err := f(account.transactOpts)
 
@@ -277,7 +294,7 @@ func (account *Account) retryNonceTx(ctx context.Context, f func(bind.TransactOp
 // and update the account's transactOpts. This function expects the caller to
 // handle potential data race conditions (i.e. Locking of mutex prior to
 // calling this method)
-func (account *Account) updateGasPrice() {
+func (account *account) updateGasPrice() {
 	gasPrice := utils.SuggestedGasPrice()
 	if gasPrice != nil {
 		account.transactOpts.GasPrice = gasPrice
