@@ -1,4 +1,4 @@
-package utils
+package netutils
 
 import (
 	"encoding/json"

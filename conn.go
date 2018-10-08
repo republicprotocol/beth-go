@@ -10,7 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/republicprotocol/beth-go/utils"
+	"github.com/republicprotocol/beth-go/netutils"
+	"github.com/republicprotocol/beth-go/typeutils"
 )
 
 // Client will have a connection to an ethereum client (specified by the url)
@@ -109,7 +110,7 @@ func (client *Client) TxBlockNumber(ctx context.Context, hash string) (*big.Int,
 		default:
 		}
 
-		response, err := utils.SendRequest(ctx, client.url, jsonStr)
+		response, err := netutils.SendInfuraRequest(ctx, client.url, jsonStr)
 		if err != nil {
 			continue
 		}
@@ -126,7 +127,7 @@ func (client *Client) TxBlockNumber(ctx context.Context, hash string) (*big.Int,
 		break
 	}
 
-	return utils.HexToBigInt(data.Result.BlockNumber)
+	return typeutils.HexToBigInt(data.Result.BlockNumber)
 }
 
 // CurrentBlockNumber will retrieve the current block that is confirmed by
@@ -152,7 +153,7 @@ func (client *Client) CurrentBlockNumber(ctx context.Context) (*big.Int, error) 
 		default:
 		}
 
-		response, err := utils.SendRequest(ctx, client.url, jsonStr)
+		response, err := netutils.SendInfuraRequest(ctx, client.url, jsonStr)
 		if err != nil {
 			continue
 		}
@@ -169,5 +170,5 @@ func (client *Client) CurrentBlockNumber(ctx context.Context) (*big.Int, error) 
 		break
 	}
 
-	return utils.HexToBigInt(data.Result.Number)
+	return typeutils.HexToBigInt(data.Result.Number)
 }

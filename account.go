@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/republicprotocol/beth-go/utils"
+	"github.com/republicprotocol/beth-go/netutils"
 )
 
 // ErrorPreConditionCheckFailed indicates that the pre-condition for executing
@@ -295,7 +295,7 @@ func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOp
 // handle potential data race conditions (i.e. Locking of mutex prior to
 // calling this method)
 func (account *account) updateGasPrice() {
-	gasPrice := utils.SuggestedGasPrice()
+	gasPrice := netutils.SuggestedGasPrice()
 	if gasPrice != nil {
 		account.transactOpts.GasPrice = gasPrice
 	}
