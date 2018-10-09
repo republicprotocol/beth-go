@@ -1,18 +1,25 @@
 package beth
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
 	"math/big"
+	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/republicprotocol/beth-go/netutils"
-	"github.com/republicprotocol/beth-go/typeutils"
 )
+
+// ErrCannotConvertToBigInt is returned when string cannot be parsed into a
+// big.Int format.
+var ErrCannotConvertToBigInt = errors.New("cannot convert hex string to int: invalid format")
 
 // Client will have a connection to an ethereum client (specified by the url)
 type Client struct {
@@ -110,7 +117,7 @@ func (client *Client) TxBlockNumber(ctx context.Context, hash string) (*big.Int,
 		default:
 		}
 
-		response, err := netutils.SendInfuraRequest(ctx, client.url, jsonStr)
+		response, err := sendInfuraRequest(ctx, client.url, jsonStr)
 		if err != nil {
 			continue
 		}
@@ -127,7 +134,7 @@ func (client *Client) TxBlockNumber(ctx context.Context, hash string) (*big.Int,
 		break
 	}
 
-	return typeutils.HexToBigInt(data.Result.BlockNumber)
+	return hexToBigInt(data.Result.BlockNumber)
 }
 
 // CurrentBlockNumber will retrieve the current block that is confirmed by
@@ -153,7 +160,7 @@ func (client *Client) CurrentBlockNumber(ctx context.Context) (*big.Int, error) 
 		default:
 		}
 
-		response, err := netutils.SendInfuraRequest(ctx, client.url, jsonStr)
+		response, err := sendInfuraRequest(ctx, client.url, jsonStr)
 		if err != nil {
 			continue
 		}
@@ -170,5 +177,79 @@ func (client *Client) CurrentBlockNumber(ctx context.Context) (*big.Int, error) 
 		break
 	}
 
-	return typeutils.HexToBigInt(data.Result.Number)
+	return hexToBigInt(data.Result.Number)
+}
+
+// hexToBigInt will convert a hex value in string format to the corresponding
+// big.Int value. For example : "0xFD6CE" will return big.Int(1038030).
+func hexToBigInt(hex string) (*big.Int, error) {
+	bigInt := big.NewInt(0)
+	bigIntStr := hex[2:]
+	bigInt, ok := bigInt.SetString(bigIntStr, 16)
+	if !ok {
+		return bigInt, ErrCannotConvertToBigInt
+	}
+	return bigInt, nil
+}
+
+// sendInfuraRequest will send a request to infura and return the unmarshalled data
+// back to the caller. It will retry until a valid response is returned, or
+// until the context times out.
+func sendInfuraRequest(ctx context.Context, url string, request string) (body []byte, err error) {
+
+	sleepDurationMs := time.Duration(1000)
+
+	// Retry until a valid response is returned or until context times out
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		if body, err = func() ([]byte, error) {
+			// Create a new http POST request
+			req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(request)))
+			if err != nil {
+				return nil, err
+			}
+
+			// Send http POST request
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			if err != nil {
+				return nil, err
+			}
+
+			// Decode response body
+			return func() ([]byte, error) {
+				defer resp.Body.Close()
+
+				// Check status
+				if resp.StatusCode != http.StatusOK {
+					return nil, fmt.Errorf("unexpected status %v", resp.StatusCode)
+				}
+				// Check body
+				if resp.Body != nil {
+					return ioutil.ReadAll(resp.Body)
+				}
+				return nil, fmt.Errorf("response body is nil")
+			}()
+		}(); err == nil {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(sleepDurationMs * time.Millisecond):
+
+		}
+
+		// Increase delay for next round but saturate at 30s
+		sleepDurationMs = time.Duration(float64(sleepDurationMs) * 1.6)
+		if sleepDurationMs > 30000 {
+			sleepDurationMs = 30000
+		}
+	}
+	return
 }

@@ -3,9 +3,12 @@ package beth
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"log"
+	"math"
 	"math/big"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -15,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/republicprotocol/beth-go/netutils"
 )
 
 // ErrorPreConditionCheckFailed indicates that the pre-condition for executing
@@ -295,8 +297,41 @@ func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOp
 // handle potential data race conditions (i.e. Locking of mutex prior to
 // calling this method)
 func (account *account) updateGasPrice() {
-	gasPrice := netutils.SuggestedGasPrice()
+	gasPrice := suggestedGasPrice()
 	if gasPrice != nil {
 		account.transactOpts.GasPrice = gasPrice
 	}
+}
+
+// suggestedGasPrice returns the fast gas price that ethGasStation
+// recommends for transactions to be mined on Ethereum blockchain.
+func suggestedGasPrice() *big.Int {
+	request, _ := http.NewRequest("GET", "https://ethgasstation.info/json/ethgasAPI.json", nil)
+
+	request.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		log.Printf("cannot connect to ethGasStationAPI: %v", err)
+		return nil
+	}
+
+	if response.StatusCode != http.StatusOK {
+		log.Printf("received status code %v from ethGasStation", response.StatusCode)
+		return nil
+	}
+
+	type resp struct {
+		Fast float64 `json:"fast"`
+	}
+
+	data := new(resp)
+
+	err = json.NewDecoder(response.Body).Decode(&data)
+	if err != nil {
+		log.Printf("cannot decode json response from ethGasStation: %v", err)
+		return nil
+	}
+	return big.NewInt(int64(data.Fast * math.Pow10(8)))
 }
