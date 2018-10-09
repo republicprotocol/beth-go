@@ -16,4 +16,4 @@ script:
   - ./.travis.sh
 
 after_success:
-- goveralls -coverprofile=beth.coverprofile -service=travis-ci -repotoken $COVERALLS_TOKEN
+- goveralls -coverprofile=beth-go.coverprofile -service=travis-ci -repotoken $COVERALLS_TOKEN

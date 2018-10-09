@@ -7,6 +7,4 @@
 # golint -set_exit_status `go list ./... | grep -Ev "(vendor)"`
 
 go build ./...
-GOMAXPROCS=1 CI=true ginkgo --cover test/contract \
-
-covermerge test/contract/contract.coverprofile > beth.coverprofile
+GOMAXPROCS=1 CI=true ginkgo --cover \

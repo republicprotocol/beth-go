@@ -1,4 +1,4 @@
-package contract_test
+package beth_test
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"math/rand"
 	"os"
-	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -23,11 +22,6 @@ import (
 	"github.com/republicprotocol/beth-go/test"
 	"github.com/republicprotocol/republic-go/crypto"
 )
-
-func TestDarknode(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Contract Suite")
-}
 
 var _ = Describe("contracts", func() {
 
@@ -226,7 +220,7 @@ var _ = Describe("contracts", func() {
 
 		It("should update the contract and not return an error", func() {
 			n := 1
-			account, contract, err := newAccount("kovan", "../keystores/keystore.ropsten.json", os.Getenv("passphrase"))
+			account, contract, err := newAccount("kovan", "test/keystore.ropsten.json", os.Getenv("passphrase"))
 			Expect(err).ShouldNot(HaveOccurred())
 
 			// Retrieve original length of array
