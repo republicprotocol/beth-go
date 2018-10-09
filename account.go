@@ -57,7 +57,7 @@ type account struct {
 
 // NewAccount returns a user account for the provided private key which is
 // connected to a ethereum client.
-func NewAccount(url string, privateKey *ecdsa.PrivateKey) (*account, error) {
+func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 	client, err := Connect(url)
 	if err != nil {
 		return nil, err

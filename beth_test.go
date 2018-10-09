@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"math/rand"
 	"os"
@@ -20,23 +21,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	beth "github.com/republicprotocol/beth-go"
 	"github.com/republicprotocol/beth-go/test"
+	co "github.com/republicprotocol/co-go"
 	"github.com/republicprotocol/republic-go/crypto"
 )
 
 var _ = Describe("contracts", func() {
 
-	newAccount := func(network, keystorePath string, passphrase string) (beth.Account, *test.Bethtest, error) {
-		// Ropsten : 0x46bcff69b2d5a677c40c05c1f034ef7bf0ee4742
-		// Kovan : 0x055d30956deea82bfe0f99a2771dcc36a18dc9bb
-		contractAddr := common.Address{}
-		switch network {
-		case "kovan":
-			contractAddr = common.HexToAddress("0x055d30956deea82bfe0f99a2771dcc36a18dc9bb")
-		case "ropsten":
-			contractAddr = common.HexToAddress("0x46bcff69b2d5a677c40c05c1f034ef7bf0ee4742")
-		default:
-			return nil, nil, errors.New("invalid infura network")
-		}
+	newAccount := func(network, keystorePath string, passphrase string) (beth.Account, error) {
 
 		// Decrypt keystore
 		ks := crypto.Keystore{}
@@ -44,11 +35,11 @@ var _ = Describe("contracts", func() {
 		// Open keystore file
 		keyin, err := os.Open(keystorePath)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		json, err := ioutil.ReadAll(keyin)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		var privKey *ecdsa.PrivateKey
@@ -57,7 +48,7 @@ var _ = Describe("contracts", func() {
 		if err := ks.DecryptFromJSON(json, passphrase); err != nil {
 			key, err := keystore.DecryptKey(json, passphrase)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			privKey = key.PrivateKey
 		} else {
@@ -67,16 +58,26 @@ var _ = Describe("contracts", func() {
 		// Return a user account to perform transactions
 		account, err := beth.NewAccount(fmt.Sprintf("https://%s.infura.io", network), privKey)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
+		return account, nil
+	}
+
+	bethTest := func(network string, account beth.Account) (*test.Bethtest, error) {
+		// Ropsten : 0x46bcff69b2d5a677c40c05c1f034ef7bf0ee4742
+		// Kovan : 0x055d30956deea82bfe0f99a2771dcc36a18dc9bb
+		contractAddr := common.Address{}
+		switch network {
+		case "kovan":
+			contractAddr = common.HexToAddress("0xaf866d7f173115e4cd5401f2abadb5b26eae8c32")
+		case "ropsten":
+			contractAddr = common.HexToAddress("0xd842576402d06f9985f407a5fd74e3eb06584110")
+		default:
+			return nil, errors.New("invalid infura network")
+		}
 		// Get contract
-		contract, err := test.NewBethtest(contractAddr, bind.ContractBackend(account.EthClient().EthClient))
-		if err != nil {
-			return nil, nil, err
-		}
-
-		return account, contract, nil
+		return test.NewBethtest(contractAddr, bind.ContractBackend(account.EthClient().EthClient))
 	}
 
 	elementExists := func(ctx context.Context, conn beth.Client, contract *test.Bethtest, val *big.Int) (exists bool) {
@@ -88,13 +89,15 @@ var _ = Describe("contracts", func() {
 		return
 	}
 
-	appendToList := func(values []*big.Int, contract *test.Bethtest, account beth.Account) []error {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(len(values)+2)*time.Minute)
+	appendToList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, numConfirms int64) []error {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(len(values)+int(numConfirms)+3)*time.Minute)
 		defer cancel()
 
 		errs := make([]error, len(values))
 
-		for i, val := range values {
+		co.ParForAll(values, func(i int) {
+			defer GinkgoRecover()
+			val := values[i]
 
 			fmt.Printf("\n\x1b[37;1mAppending %v to list\x1b[0m", val.String())
 
@@ -102,7 +105,7 @@ var _ = Describe("contracts", func() {
 			preCondition := func(ctx context.Context) bool {
 				exists := elementExists(ctx, account.EthClient(), contract, val)
 				if exists {
-					fmt.Println("\n[warning] Element exists in list!")
+					fmt.Printf("\n[warning] Element %v exists in list!\n", val.String())
 				}
 
 				return !exists
@@ -119,8 +122,8 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Execute transaction
-			errs[i] = account.Transact(ctx, preCondition, f, postCondition, 1)
-		}
+			errs[i] = account.Transact(ctx, preCondition, f, postCondition, numConfirms)
+		})
 
 		return errs
 	}
@@ -134,14 +137,16 @@ var _ = Describe("contracts", func() {
 		return
 	}
 
-	deleteFromList := func(values []*big.Int, contract *test.Bethtest, account beth.Account) []error {
+	deleteFromList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, numConfirms int64) []error {
 		// Context
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(len(values)+2)*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(len(values)+int(numConfirms)+3)*time.Minute)
 		defer cancel()
 
 		errs := make([]error, len(values))
 
-		for i, val := range values {
+		co.ParForAll(values, func(i int) {
+			defer GinkgoRecover()
+			val := values[i]
 			fmt.Printf("\n\x1b[37;1mDeleting %v from list\x1b[0m", val.String())
 
 			// Pre-condition: is list is empty or is element absent in list?
@@ -174,19 +179,18 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Execute delete tx
-			errs[i] = account.Transact(ctx, preCondition, f, postCondition, 1)
-		}
-
+			errs[i] = account.Transact(ctx, preCondition, f, postCondition, numConfirms)
+		})
 		return errs
 	}
 
-	randomValues := func(n int) []*big.Int {
+	randomValues := func(n int64) []*big.Int {
 		rand.Seed(time.Now().Unix())
 
 		values := []*big.Int{}
 		uniqueValues := make(map[int]struct{})
 		i := 0
-		for i < n {
+		for i < int(n) {
 			// Randomly create a value and append it to list
 			integerValue := rand.Intn(100) + 1
 			if _, ok := uniqueValues[integerValue]; ok {
@@ -216,44 +220,96 @@ var _ = Describe("contracts", func() {
 		return err
 	}
 
-	Context("when modifying a list in the contract", func() {
+	testedNetworks := []string{"kovan", "ropsten"}
 
-		It("should update the contract and not return an error", func() {
-			n := 1
-			account, contract, err := newAccount("kovan", "test/keystore.ropsten.json", os.Getenv("passphrase"))
-			Expect(err).ShouldNot(HaveOccurred())
+	keystorePaths := []string{"test/keystore.ropsten.json", "test/keystore.kovan.json"}
+	addresses := []string{"3a5e0b1158ca9ce861a80c3049d347a3f1825db0", "6b9b3e47c4c73db44f6a34064b21da8c62692a8c"}
 
-			// Retrieve original length of array
-			originalLength, err := size(context.Background(), account.EthClient(), contract)
-			Expect(err).ShouldNot(HaveOccurred())
+	tableParallelism := []struct {
+		n, numConfirms int64
+	}{
+		{1, 3},
+		{2, 3},
+		{4, 2},
+		{8, 1},
+		{16, 1},
+	}
 
-			// Append randomly generated values to a list maintained by a smart contract
-			values := randomValues(n)
-			errs := appendToList(values, contract, account)
-			Expect(handleErrors(errs)).ShouldNot(HaveOccurred())
+	for _, network := range testedNetworks {
+		network := network
 
-			// Attempt to add a previously added item again
-			errs = appendToList(values[:1], contract, account)
-			err = handleErrors(errs)
-			Expect(err).Should(HaveOccurred())
-			Expect(err).Should(Equal(beth.ErrorPreConditionCheckFailed))
+		Context(fmt.Sprintf("when updating a list in a contract deployed on %s", network), func() {
 
-			// Attempt to delete all newly added elements from the list
-			errs = deleteFromList(values, contract, account)
-			Expect(handleErrors(errs)).ShouldNot(HaveOccurred())
+			for _, entry := range tableParallelism {
+				n := entry.n
+				numConfirms := entry.numConfirms
 
-			// Attempt to delete a value that does not exist in the list
-			errs = deleteFromList(values[:1], contract, account)
-			err = handleErrors(errs)
-			Expect(err).Should(HaveOccurred())
-			Expect(err).Should(Equal(beth.ErrorPreConditionCheckFailed))
+				It(fmt.Sprintf("should write %v elements to the contract and not return an error", n), func() {
+					account, err := newAccount(network, fmt.Sprintf("test/keystore.%s.json", network), os.Getenv("passphrase"))
+					Expect(err).ShouldNot(HaveOccurred())
+					contract, err := bethTest(network, account)
+					Expect(err).ShouldNot(HaveOccurred())
 
-			// Retrieve length of array after deleting the newly added elements
-			newLength, err := size(context.Background(), account.EthClient(), contract)
-			Expect(err).ShouldNot(HaveOccurred())
+					// Retrieve original length of array
+					originalLength, err := size(context.Background(), account.EthClient(), contract)
+					Expect(err).ShouldNot(HaveOccurred())
+					fmt.Printf("\n\x1b[37;1mThe size of array on %s is %v\n\x1b[0m", network, originalLength.String())
 
-			// The new length must not be greater than the original length
-			Expect(newLength.Cmp(originalLength)).To(BeNumerically("<=", 0))
+					// Append randomly generated values to a list maintained by a smart contract
+					values := randomValues(n)
+					errs := appendToList(values, contract, account, numConfirms)
+					Expect(handleErrors(errs)).ShouldNot(HaveOccurred())
+
+					// Attempt to add a previously added item again
+					errs = appendToList(values[:1], contract, account, numConfirms)
+					err = handleErrors(errs)
+					Expect(err).Should(HaveOccurred())
+					Expect(err).Should(Equal(beth.ErrorPreConditionCheckFailed))
+
+					// Attempt to delete all newly added elements from the list
+					errs = deleteFromList(values, contract, account, numConfirms)
+					Expect(handleErrors(errs)).ShouldNot(HaveOccurred())
+
+					// Attempt to delete a value that does not exist in the list
+					errs = deleteFromList(values[:1], contract, account, numConfirms)
+					err = handleErrors(errs)
+					Expect(err).Should(HaveOccurred())
+					Expect(err).Should(Equal(beth.ErrorPreConditionCheckFailed))
+
+					// Retrieve length of array after deleting the newly added elements
+					newLength, err := size(context.Background(), account.EthClient(), contract)
+					Expect(err).ShouldNot(HaveOccurred())
+					fmt.Printf("\n\x1b[37;1mThe new size of array on %s is %v\n\x1b[0m", network, newLength.String())
+
+					// The new length must not be greater than the original length
+					Expect(newLength.Cmp(originalLength)).To(BeNumerically("<=", 0))
+				})
+			}
 		})
-	})
+
+		Context(fmt.Sprintf("when transferring eth from one account to an ethereum address on %s", network), func() {
+
+			It("should successfully transfer and not return an error", func() {
+				// Context with 5 minute timeout
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+				defer cancel()
+
+				toAddrs := []common.Address{}
+				for i := 0; i < 2; i++ {
+					toAddrs = append(toAddrs, common.HexToAddress(addresses[i]))
+				}
+
+				co.ParForAll(toAddrs, func(i int) {
+
+					account, err := newAccount(network, keystorePaths[i], os.Getenv("passphrase"))
+					Expect(err).ShouldNot(HaveOccurred())
+					// Transfer 1 Eth to the other account's address
+					value, _ := big.NewFloat(1 * math.Pow10(18)).Int(nil)
+					if err := account.Transfer(ctx, toAddrs[i], value, int64(i+1)); err != nil {
+						Expect(err).ShouldNot(HaveOccurred())
+					}
+				})
+			})
+		})
+	}
 })
