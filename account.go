@@ -131,9 +131,9 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func(ctx
 
 			account.updateGasPrice()
 
-			// This will attempt to execute 'f' until no nonce error is
-			// returned or if ctx times out
-			tx, err := account.retryNonceTx(ctx, f)
+			// This will attempt to execute 'f' until no nonce or gas price
+			// error is returned, or if ctx times out
+			tx, err := account.retryTx(ctx, f)
 			if err != nil {
 				return err
 			}
@@ -242,9 +242,15 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 	return account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
 }
 
-// retryNonceTx retries transaction execution on the blockchain until nonce
-// errors are not seen, or until the context times out.
-func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOpts) (*types.Transaction, error)) (*types.Transaction, error) {
+// retryTx retries transaction execution on the blockchain until nonce
+// and low gas price errors are not seen, or until the context times out.
+func (account *account) retryTx(ctx context.Context, f func(bind.TransactOpts) (*types.Transaction, error)) (*types.Transaction, error) {
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
 
 	tx, err := f(account.transactOpts)
 
@@ -258,13 +264,13 @@ func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOp
 	// If error indicates that nonce is too low, increment nonce and retry
 	if err == core.ErrNonceTooLow || err == core.ErrReplaceUnderpriced || strings.Contains(err.Error(), "nonce is too low") {
 		account.transactOpts.Nonce.Add(account.transactOpts.Nonce, big.NewInt(1))
-		return account.retryNonceTx(ctx, f)
+		return account.retryTx(ctx, f)
 	}
 
 	// If error indicates that nonce is too low, decrement nonce and retry
 	if err == core.ErrNonceTooHigh {
 		account.transactOpts.Nonce.Sub(account.transactOpts.Nonce, big.NewInt(1))
-		return account.retryNonceTx(ctx, f)
+		return account.retryTx(ctx, f)
 	}
 
 	// If any other type of nonce error occurs we will refresh the nonce and
@@ -289,6 +295,14 @@ func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOp
 			return tx, nil
 		}
 	}
+
+	// Process errors to check for underpriced issues
+	// If error indicates that gas price is too low, increment gas price and retry
+	if err == core.ErrUnderpriced || err == core.ErrReplaceUnderpriced {
+		account.transactOpts.GasPrice.Add(account.transactOpts.GasPrice, big.NewInt(int64(math.Pow10(8))))
+		return account.retryTx(ctx, f)
+	}
+
 	return tx, err
 }
 
