@@ -89,8 +89,56 @@ var _ = Describe("contracts", func() {
 		return
 	}
 
-	appendToList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, numConfirms int64) []error {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(len(values)+int(numConfirms)+3)*time.Minute)
+	read := func(ctx context.Context, conn beth.Client, contract *test.Bethtest) (newVal *big.Int, err error) {
+		err = conn.Get(ctx, &bind.CallOpts{}, func(callOpts *bind.CallOpts) (err error) {
+			newVal, err = contract.Read(callOpts)
+			return
+		})
+
+		fmt.Printf("[info] Value in contract is %v\n", newVal.String())
+		return
+	}
+
+	setInt := func(ctx context.Context, account beth.Account, contract *test.Bethtest, val *big.Int) error {
+		// Set integer in contract
+		f := func(txOpts bind.TransactOpts) (*types.Transaction, error) {
+			return contract.Set(&txOpts, val)
+		}
+
+		// Post-condition: Confirm that the integer has the new value
+		postCondition := func(ctx context.Context) bool {
+			newVal, err := read(ctx, account.EthClient(), contract)
+			if err != nil {
+				return false
+			}
+			return newVal.Cmp(val) == 0
+		}
+
+		return account.Transact(ctx, nil, f, postCondition, 1)
+	}
+
+	increment := func(ctx context.Context, account beth.Account, contract *test.Bethtest, val *big.Int) error {
+		val.Add(val, big.NewInt(1))
+
+		// Increment integer in the contract
+		f := func(txOpts bind.TransactOpts) (*types.Transaction, error) {
+			return contract.Increment(&txOpts)
+		}
+
+		// Post-condition: confirm that previous value has been incremented
+		postCondition := func(ctx context.Context) bool {
+			newVal, err := read(ctx, account.EthClient(), contract)
+			if err != nil {
+				return false
+			}
+			return newVal.Cmp(val) >= 0
+		}
+
+		return account.Transact(ctx, nil, f, postCondition, 2)
+	}
+
+	appendToList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, waitBlocks int64) []error {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(len(values)+int(waitBlocks)+3)*time.Minute)
 		defer cancel()
 
 		errs := make([]error, len(values))
@@ -122,7 +170,7 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Execute transaction
-			errs[i] = account.Transact(ctx, preCondition, f, postCondition, numConfirms)
+			errs[i] = account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
 		})
 
 		return errs
@@ -137,9 +185,9 @@ var _ = Describe("contracts", func() {
 		return
 	}
 
-	deleteFromList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, numConfirms int64) []error {
+	deleteFromList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, waitBlocks int64) []error {
 		// Context
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(len(values)+int(numConfirms)+3)*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(len(values)+int(waitBlocks)+3)*time.Minute)
 		defer cancel()
 
 		errs := make([]error, len(values))
@@ -179,20 +227,18 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Execute delete tx
-			errs[i] = account.Transact(ctx, preCondition, f, postCondition, numConfirms)
+			errs[i] = account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
 		})
 		return errs
 	}
 
 	randomValues := func(n int64) []*big.Int {
-		rand.Seed(time.Now().Unix())
-
 		values := []*big.Int{}
 		uniqueValues := make(map[int]struct{})
 		i := 0
 		for i < int(n) {
 			// Randomly create a value and append it to list
-			integerValue := rand.Intn(100) + 1
+			integerValue := rand.Intn(10000) + 1
 			if _, ok := uniqueValues[integerValue]; ok {
 				continue
 			}
@@ -220,13 +266,14 @@ var _ = Describe("contracts", func() {
 		return err
 	}
 
+	rand.Seed(time.Now().Unix())
 	testedNetworks := []string{"kovan", "ropsten"}
 
 	keystorePaths := []string{"test/keystore.ropsten.json", "test/keystore.kovan.json"}
 	addresses := []string{"3a5e0b1158ca9ce861a80c3049d347a3f1825db0", "6b9b3e47c4c73db44f6a34064b21da8c62692a8c"}
 
 	tableParallelism := []struct {
-		n, numConfirms int64
+		n, waitBlocks int64
 	}{
 		{1, 3},
 		{2, 3},
@@ -238,13 +285,43 @@ var _ = Describe("contracts", func() {
 	for _, network := range testedNetworks {
 		network := network
 
-		Context(fmt.Sprintf("when updating a list in a contract deployed on %s", network), func() {
+		for _, entry := range tableParallelism {
+			n := entry.n
+			waitBlocks := entry.waitBlocks
 
-			for _, entry := range tableParallelism {
-				n := entry.n
-				numConfirms := entry.numConfirms
+			Context(fmt.Sprintf("when modifying an integer %v times in a contract deployed on %s", n, network), func() {
+				
+				It("should write to the contract and not return an error", func() {
+					for i := 0; i < int(n); i++ {
 
-				It(fmt.Sprintf("should write %v elements to the contract and not return an error", n), func() {
+						account, err := newAccount(network, fmt.Sprintf("test/keystore.%s.json", network), os.Getenv("passphrase"))
+						Expect(err).ShouldNot(HaveOccurred())
+						contract, err := bethTest(network, account)
+						Expect(err).ShouldNot(HaveOccurred())
+
+						ctx, cancel := context.WithTimeout(context.Background(), time.Duration(2)*time.Minute)
+						defer cancel()
+
+						// Generate random value
+						val := big.NewInt(int64(rand.Intn(100)))
+
+						fmt.Printf("\n\x1b[37;1mSetting integer %v in the contract on %s\n\x1b[0m", val.String(), network)
+
+						// Set value in the contract
+						setInt(ctx, account, contract, val)
+
+						fmt.Printf("\n\x1b[37;1mIncrementing %v in the contract on %s\x1b[0m\n", val.String(), network)
+
+						// Increment the value in the contract
+						increment(ctx, account, contract, val)
+					}
+				})
+			})
+
+			Context(fmt.Sprintf("when updating a list with %v elements in a contract deployed on %s", n, network), func() {
+
+				It("should write to the contract and not return an error", func() {
+
 					account, err := newAccount(network, fmt.Sprintf("test/keystore.%s.json", network), os.Getenv("passphrase"))
 					Expect(err).ShouldNot(HaveOccurred())
 					contract, err := bethTest(network, account)
@@ -257,21 +334,24 @@ var _ = Describe("contracts", func() {
 
 					// Append randomly generated values to a list maintained by a smart contract
 					values := randomValues(n)
-					errs := appendToList(values, contract, account, numConfirms)
-					Expect(handleErrors(errs)).ShouldNot(HaveOccurred())
+					errs := appendToList(values, contract, account, waitBlocks)
+					err = handleErrors(errs)
+					if err != nil && err != beth.ErrorPreConditionCheckFailed {
+						Expect(err).ShouldNot(HaveOccurred())
+					}
 
 					// Attempt to add a previously added item again
-					errs = appendToList(values[:1], contract, account, numConfirms)
+					errs = appendToList(values[:1], contract, account, waitBlocks)
 					err = handleErrors(errs)
 					Expect(err).Should(HaveOccurred())
 					Expect(err).Should(Equal(beth.ErrorPreConditionCheckFailed))
 
 					// Attempt to delete all newly added elements from the list
-					errs = deleteFromList(values, contract, account, numConfirms)
+					errs = deleteFromList(values, contract, account, waitBlocks)
 					Expect(handleErrors(errs)).ShouldNot(HaveOccurred())
 
 					// Attempt to delete a value that does not exist in the list
-					errs = deleteFromList(values[:1], contract, account, numConfirms)
+					errs = deleteFromList(values[:1], contract, account, waitBlocks)
 					err = handleErrors(errs)
 					Expect(err).Should(HaveOccurred())
 					Expect(err).Should(Equal(beth.ErrorPreConditionCheckFailed))
@@ -284,32 +364,34 @@ var _ = Describe("contracts", func() {
 					// The new length must not be greater than the original length
 					Expect(newLength.Cmp(originalLength)).To(BeNumerically("<=", 0))
 				})
-			}
-		})
+			})
 
-		Context(fmt.Sprintf("when transferring eth from one account to an ethereum address on %s", network), func() {
+			Context(fmt.Sprintf("when transferring eth from one account to an ethereum address on %s", network), func() {
 
-			It("should successfully transfer and not return an error", func() {
-				// Context with 5 minute timeout
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-				defer cancel()
+				It(fmt.Sprintf("should successfully transfer %v times and not return an error", n), func() {
+					// Context with 5 minute timeout
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+					defer cancel()
 
-				toAddrs := []common.Address{}
-				for i := 0; i < 2; i++ {
-					toAddrs = append(toAddrs, common.HexToAddress(addresses[i]))
-				}
+					toAddrs := []common.Address{}
+					for i := 0; i < 2; i++ {
+						toAddrs = append(toAddrs, common.HexToAddress(addresses[i]))
+					}
 
-				co.ParForAll(toAddrs, func(i int) {
+					for ind := 1; ind <= int(n); ind++ {
+						co.ParForAll(toAddrs, func(i int) {
 
-					account, err := newAccount(network, keystorePaths[i], os.Getenv("passphrase"))
-					Expect(err).ShouldNot(HaveOccurred())
-					// Transfer 1 Eth to the other account's address
-					value, _ := big.NewFloat(1 * math.Pow10(18)).Int(nil)
-					if err := account.Transfer(ctx, toAddrs[i], value, int64(i+1)); err != nil {
-						Expect(err).ShouldNot(HaveOccurred())
+							account, err := newAccount(network, keystorePaths[i], os.Getenv("passphrase"))
+							Expect(err).ShouldNot(HaveOccurred())
+							// Transfer 1 Eth to the other account's address
+							value, _ := big.NewFloat(float64(ind) * math.Pow10(18)).Int(nil)
+							if err := account.Transfer(ctx, toAddrs[i], value, int64(i+1)); err != nil {
+								Expect(err).ShouldNot(HaveOccurred())
+							}
+						})
 					}
 				})
 			})
-		})
+		}
 	}
 })
