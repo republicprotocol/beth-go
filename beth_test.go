@@ -290,7 +290,7 @@ var _ = Describe("contracts", func() {
 			waitBlocks := entry.waitBlocks
 
 			Context(fmt.Sprintf("when modifying an integer %v times in a contract deployed on %s", n, network), func() {
-				
+
 				It("should write to the contract and not return an error", func() {
 					for i := 0; i < int(n); i++ {
 
@@ -384,7 +384,7 @@ var _ = Describe("contracts", func() {
 							account, err := newAccount(network, keystorePaths[i], os.Getenv("passphrase"))
 							Expect(err).ShouldNot(HaveOccurred())
 							// Transfer 1 Eth to the other account's address
-							value, _ := big.NewFloat(float64(ind) * math.Pow10(18)).Int(nil)
+							value, _ := big.NewFloat(1 * math.Pow10(18)).Int(nil)
 							if err := account.Transfer(ctx, toAddrs[i], value, int64(i+1)); err != nil {
 								Expect(err).ShouldNot(HaveOccurred())
 							}
