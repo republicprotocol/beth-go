@@ -368,7 +368,7 @@ var _ = Describe("contracts", func() {
 
 			Context(fmt.Sprintf("when transferring eth from one account to an ethereum address on %s", network), func() {
 
-				It(fmt.Sprintf("should successfully transfer %v times and not return an error", n), func() {
+				It("should successfully transfer eth and not return an error", func() {
 					// Context with 5 minute timeout
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 					defer cancel()
@@ -378,18 +378,15 @@ var _ = Describe("contracts", func() {
 						toAddrs = append(toAddrs, common.HexToAddress(addresses[i]))
 					}
 
-					for ind := 1; ind <= int(n); ind++ {
-						co.ParForAll(toAddrs, func(i int) {
-
-							account, err := newAccount(network, keystorePaths[i], os.Getenv("passphrase"))
+					co.ParForAll(toAddrs, func(i int) {
+						account, err := newAccount(network, keystorePaths[i], os.Getenv("passphrase"))
+						Expect(err).ShouldNot(HaveOccurred())
+						// Transfer 1 Eth to the other account's address
+						value, _ := big.NewFloat(1 * math.Pow10(18)).Int(nil)
+						if err := account.Transfer(ctx, toAddrs[i], value, int64(i+1)); err != nil {
 							Expect(err).ShouldNot(HaveOccurred())
-							// Transfer 1 Eth to the other account's address
-							value, _ := big.NewFloat(1 * math.Pow10(18)).Int(nil)
-							if err := account.Transfer(ctx, toAddrs[i], value, int64(i+1)); err != nil {
-								Expect(err).ShouldNot(HaveOccurred())
-							}
-						})
-					}
+						}
+					})
 				})
 			})
 		}
