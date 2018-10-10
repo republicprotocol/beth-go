@@ -278,8 +278,8 @@ var _ = Describe("contracts", func() {
 		{1, 3},
 		{2, 3},
 		{4, 2},
-		{8, 1},
-		{16, 1},
+		// {8, 1},
+		// {16, 1},
 	}
 
 	for _, network := range testedNetworks {
