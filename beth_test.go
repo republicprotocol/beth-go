@@ -115,13 +115,18 @@ var _ = Describe("contracts", func() {
 		}
 
 		for {
+			sleepFor := 0
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			default:
+			case <-time.After(time.Duration(sleepFor) * time.Millisecond):
 			}
 			err := account.Transact(ctx, nil, f, postCondition, 1)
 			if err != nil && err == beth.ErrIncorrectNonce {
+				sleepFor += 500
+				if sleepFor >= 30000 {
+					sleepFor = 30000
+				}
 				continue
 			}
 			return err
@@ -147,13 +152,18 @@ var _ = Describe("contracts", func() {
 		}
 
 		for {
+			sleepFor := 0
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			default:
+			case <-time.After(time.Duration(sleepFor) * time.Millisecond):
 			}
 			err := account.Transact(ctx, nil, f, postCondition, 2)
 			if err != nil && err == beth.ErrIncorrectNonce {
+				sleepFor += 500
+				if sleepFor >= 30000 {
+					sleepFor = 30000
+				}
 				continue
 			}
 			return err
@@ -194,14 +204,20 @@ var _ = Describe("contracts", func() {
 
 			// Execute transaction
 			for {
+				sleepFor := 0
 				select {
 				case <-ctx.Done():
 					errs[i] = ctx.Err()
 					break
-				default:
+				case <-time.After(time.Duration(sleepFor) * time.Millisecond):
 				}
+
 				err := account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
 				if err != nil && err == beth.ErrIncorrectNonce {
+					sleepFor += 500
+					if sleepFor >= 30000 {
+						sleepFor = 30000
+					}
 					continue
 				}
 				errs[i] = err
@@ -264,14 +280,19 @@ var _ = Describe("contracts", func() {
 
 			// Execute delete tx
 			for {
+				sleepFor := 0
 				select {
 				case <-ctx.Done():
 					errs[i] = ctx.Err()
 					break
-				default:
+				case <-time.After(time.Duration(sleepFor) * time.Millisecond):
 				}
 				err := account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
 				if err != nil && err == beth.ErrIncorrectNonce {
+					sleepFor += 500
+					if sleepFor >= 30000 {
+						sleepFor = 30000
+					}
 					continue
 				}
 				errs[i] = err
