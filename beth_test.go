@@ -128,6 +128,7 @@ var _ = Describe("contracts", func() {
 		}
 	}
 
+	// TODO: name this function 'increment' before enabling integer increment tests
 	_ = func(ctx context.Context, account beth.Account, contract *test.Bethtest, val *big.Int) error {
 		val.Add(val, big.NewInt(1))
 
