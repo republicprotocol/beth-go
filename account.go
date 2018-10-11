@@ -44,7 +44,7 @@ type Account interface {
 	// first conduct a preConditionCheck and if the check passes, it will
 	// repeatedly execute the transaction followed by a postConditionCheck,
 	// until the transaction passes and the postConditionCheck returns true.
-	Transact(ctx context.Context, preConditionCheck func(ctx context.Context) bool, f func(bind.TransactOpts) (*types.Transaction, error), postConditionCheck func(ctx context.Context) bool, confirmBlocks int64) error
+	Transact(ctx context.Context, preConditionCheck func() bool, f func(bind.TransactOpts) (*types.Transaction, error), postConditionCheck func() bool, confirmBlocks int64) error
 }
 
 type account struct {
@@ -103,10 +103,10 @@ func (account *account) EthClient() Client {
 
 // Transact attempts to execute a transaction on the Ethereum blockchain with
 // the retry functionality.
-func (account *account) Transact(ctx context.Context, preConditionCheck func(ctx context.Context) bool, f func(bind.TransactOpts) (*types.Transaction, error), postConditionCheck func(ctx context.Context) bool, waitForBlocks int64) error {
+func (account *account) Transact(ctx context.Context, preConditionCheck func() bool, f func(bind.TransactOpts) (*types.Transaction, error), postConditionCheck func() bool, waitForBlocks int64) error {
 
 	// Do not proceed any further if the (not nil) pre-condition check fails
-	if preConditionCheck != nil && !preConditionCheck(ctx) {
+	if preConditionCheck != nil && !preConditionCheck() {
 		return ErrorPreConditionCheckFailed
 	}
 
@@ -131,9 +131,9 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func(ctx
 
 			account.updateGasPrice()
 
-			// This will attempt to execute 'f' until no nonce or gas price
-			// error is returned, or if ctx times out
-			tx, err := account.retryTx(ctx, f)
+			// This will attempt to execute 'f' until no nonce error is
+			// returned or if ctx times out
+			tx, err := account.retryNonceTx(ctx, f)
 			if err != nil {
 				return err
 			}
@@ -153,7 +153,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func(ctx
 
 		// If post-condition check passes, proceed to wait for a specified
 		// number of blocks to be confirmed after the transaction's block
-		if postConditionCheck == nil || postConditionCheck(ctx) {
+		if postConditionCheck == nil || postConditionCheck() {
 			break
 		}
 
@@ -214,7 +214,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func(ctx
 func (account *account) Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) error {
 
 	// Pre-condition check: Check if the account has enough balance
-	preConditionCheck := func(ctx context.Context) bool {
+	preConditionCheck := func() bool {
 		accountBalance, err := account.client.BalanceOf(ctx, account.Address(), &account.callOpts)
 		if err != nil || accountBalance.Cmp(value) <= 0 {
 			return false
@@ -242,9 +242,9 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 	return account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
 }
 
-// retryTx retries transaction execution on the blockchain until nonce
-// and low gas price errors are not seen, or until the context times out.
-func (account *account) retryTx(ctx context.Context, f func(bind.TransactOpts) (*types.Transaction, error)) (*types.Transaction, error) {
+// retryNonceTx retries transaction execution on the blockchain until nonce
+// errors are not seen, or until the context times out.
+func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOpts) (*types.Transaction, error)) (*types.Transaction, error) {
 
 	select {
 	case <-ctx.Done():
@@ -264,13 +264,13 @@ func (account *account) retryTx(ctx context.Context, f func(bind.TransactOpts) (
 	// If error indicates that nonce is too low, increment nonce and retry
 	if err == core.ErrNonceTooLow || err == core.ErrReplaceUnderpriced || strings.Contains(err.Error(), "nonce is too low") {
 		account.transactOpts.Nonce.Add(account.transactOpts.Nonce, big.NewInt(1))
-		return account.retryTx(ctx, f)
+		return account.retryNonceTx(ctx, f)
 	}
 
 	// If error indicates that nonce is too low, decrement nonce and retry
 	if err == core.ErrNonceTooHigh {
 		account.transactOpts.Nonce.Sub(account.transactOpts.Nonce, big.NewInt(1))
-		return account.retryTx(ctx, f)
+		return account.retryNonceTx(ctx, f)
 	}
 
 	// If any other type of nonce error occurs we will refresh the nonce and
@@ -294,13 +294,6 @@ func (account *account) retryTx(ctx context.Context, f func(bind.TransactOpts) (
 			account.transactOpts.Nonce.Add(account.transactOpts.Nonce, big.NewInt(1))
 			return tx, nil
 		}
-	}
-
-	// Process errors to check for underpriced issues
-	// If error indicates that gas price is too low, increment gas price and retry
-	if err == core.ErrUnderpriced || err == core.ErrReplaceUnderpriced {
-		account.transactOpts.GasPrice.Add(account.transactOpts.GasPrice, big.NewInt(int64(math.Pow10(8))))
-		return account.retryTx(ctx, f)
 	}
 
 	return tx, err
