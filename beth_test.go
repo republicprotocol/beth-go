@@ -99,7 +99,11 @@ var _ = Describe("contracts", func() {
 		return
 	}
 
-	setInt := func(ctx context.Context, account beth.Account, contract *test.Bethtest, val *big.Int) error {
+	setInt := func(account beth.Account, contract *test.Bethtest, val *big.Int) error {
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Minute)
+		defer cancel()
+
 		// Set integer in contract
 		f := func(txOpts bind.TransactOpts) (*types.Transaction, error) {
 			return contract.Set(&txOpts, val)
@@ -369,16 +373,13 @@ var _ = Describe("contracts", func() {
 						contract, err := bethTest(network, account)
 						Expect(err).ShouldNot(HaveOccurred())
 
-						ctx, cancel := context.WithTimeout(context.Background(), time.Duration(2)*time.Minute)
-						defer cancel()
-
 						// Generate random value
 						val := big.NewInt(int64(rand.Intn(100)))
 
 						fmt.Printf("\n\x1b[37;1mSetting integer %v in the contract on %s\n\x1b[0m", val.String(), network)
 
 						// Set value in the contract
-						err = setInt(ctx, account, contract, val)
+						err = setInt(account, contract, val)
 						Expect(err).ShouldNot(HaveOccurred())
 
 						// Disable incrementing integers on parallel CI tests.
