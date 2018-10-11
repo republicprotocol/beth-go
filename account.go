@@ -20,13 +20,17 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// ErrorPreConditionCheckFailed indicates that the pre-condition for executing
+// ErrPreConditionCheckFailed indicates that the pre-condition for executing
 // a transaction failed.
-var ErrorPreConditionCheckFailed = errors.New("pre-condition check failed")
+var ErrPreConditionCheckFailed = errors.New("pre-condition check failed")
 
-// ErrorPostConditionCheckFailed indicates that the post-condition for executing
+// ErrPostConditionCheckFailed indicates that the post-condition for executing
 // a transaction failed.
-var ErrorPostConditionCheckFailed = errors.New("post-condition check failed")
+var ErrPostConditionCheckFailed = errors.New("post-condition check failed")
+
+// ErrIncorrectNonce indicates that there exists another transaction with the
+// same nonce and a higher or equal gas price as the present transaction.
+var ErrIncorrectNonce = errors.New("there exists another transaction with the same nonce")
 
 // Account is an Ethereum external account that can submit write transactions
 // to the Ethereum blockchain. An Account is defined by its public address and
@@ -107,7 +111,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 
 	// Do not proceed any further if the (not nil) pre-condition check fails
 	if preConditionCheck != nil && !preConditionCheck() {
-		return ErrorPreConditionCheckFailed
+		return ErrPreConditionCheckFailed
 	}
 
 	sleepDurationMs := time.Duration(1000)
@@ -147,7 +151,12 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			txHash = receipt.TxHash
 			return nil
 		}(); err != nil {
-			log.Println(err)
+			// There is another transaction with the same nonce and a higher or
+			// equal gas price as that of this transaction.
+			if err == core.ErrReplaceUnderpriced {
+				return ErrIncorrectNonce
+			}
+			log.Printf("\ngot error : %v; re-trying transaction\n", err)
 			continue
 		}
 
@@ -162,7 +171,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 		// post-condition failed
 		select {
 		case <-ctx.Done():
-			return ErrorPostConditionCheckFailed
+			return ErrPostConditionCheckFailed
 		case <-time.After(sleepDurationMs * time.Millisecond):
 
 		}

@@ -114,7 +114,18 @@ var _ = Describe("contracts", func() {
 			return newVal.Cmp(val) == 0
 		}
 
-		return account.Transact(ctx, nil, f, postCondition, 1)
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+			err := account.Transact(ctx, nil, f, postCondition, 1)
+			if err != nil && err == beth.ErrIncorrectNonce {
+				continue
+			}
+			return err
+		}
 	}
 
 	increment := func(ctx context.Context, account beth.Account, contract *test.Bethtest, val *big.Int) error {
@@ -134,7 +145,18 @@ var _ = Describe("contracts", func() {
 			return newVal.Cmp(val) >= 0
 		}
 
-		return account.Transact(ctx, nil, f, postCondition, 2)
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+			err := account.Transact(ctx, nil, f, postCondition, 2)
+			if err != nil && err == beth.ErrIncorrectNonce {
+				continue
+			}
+			return err
+		}
 	}
 
 	appendToList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, waitBlocks int64) []error {
@@ -170,7 +192,20 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Execute transaction
-			errs[i] = account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
+			for {
+				select {
+				case <-ctx.Done():
+					errs[i] = ctx.Err()
+					break
+				default:
+				}
+				err := account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
+				if err != nil && err == beth.ErrIncorrectNonce {
+					continue
+				}
+				errs[i] = err
+				break
+			}
 		})
 
 		return errs
@@ -227,7 +262,20 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Execute delete tx
-			errs[i] = account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
+			for {
+				select {
+				case <-ctx.Done():
+					errs[i] = ctx.Err()
+					break
+				default:
+				}
+				err := account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
+				if err != nil && err == beth.ErrIncorrectNonce {
+					continue
+				}
+				errs[i] = err
+				break
+			}
 		})
 		return errs
 	}
@@ -336,7 +384,7 @@ var _ = Describe("contracts", func() {
 					values := randomValues(n)
 					errs := appendToList(values, contract, account, waitBlocks)
 					err = handleErrors(errs)
-					if err != nil && err != beth.ErrorPreConditionCheckFailed {
+					if err != nil && err != beth.ErrPreConditionCheckFailed {
 						Expect(err).ShouldNot(HaveOccurred())
 					}
 
@@ -344,7 +392,7 @@ var _ = Describe("contracts", func() {
 					errs = appendToList(values[:1], contract, account, waitBlocks)
 					err = handleErrors(errs)
 					Expect(err).Should(HaveOccurred())
-					Expect(err).Should(Equal(beth.ErrorPreConditionCheckFailed))
+					Expect(err).Should(Equal(beth.ErrPreConditionCheckFailed))
 
 					// Attempt to delete all newly added elements from the list
 					errs = deleteFromList(values, contract, account, waitBlocks)
@@ -354,7 +402,7 @@ var _ = Describe("contracts", func() {
 					errs = deleteFromList(values[:1], contract, account, waitBlocks)
 					err = handleErrors(errs)
 					Expect(err).Should(HaveOccurred())
-					Expect(err).Should(Equal(beth.ErrorPreConditionCheckFailed))
+					Expect(err).Should(Equal(beth.ErrPreConditionCheckFailed))
 
 					// Retrieve length of array after deleting the newly added elements
 					newLength, err := size(context.Background(), account.EthClient(), contract)
