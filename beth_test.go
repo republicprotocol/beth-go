@@ -106,7 +106,7 @@ var _ = Describe("contracts", func() {
 		}
 
 		// Post-condition: Confirm that the integer has the new value
-		postCondition := func(ctx context.Context) bool {
+		postCondition := func() bool {
 			newVal, err := read(ctx, account.EthClient(), contract)
 			if err != nil {
 				return false
@@ -126,7 +126,7 @@ var _ = Describe("contracts", func() {
 		}
 
 		// Post-condition: confirm that previous value has been incremented
-		postCondition := func(ctx context.Context) bool {
+		postCondition := func() bool {
 			newVal, err := read(ctx, account.EthClient(), contract)
 			if err != nil {
 				return false
@@ -150,7 +150,7 @@ var _ = Describe("contracts", func() {
 			fmt.Printf("\n\x1b[37;1mAppending %v to list\x1b[0m", val.String())
 
 			// Pre-condition: Does element already exist in the list?
-			preCondition := func(ctx context.Context) bool {
+			preCondition := func() bool {
 				exists := elementExists(ctx, account.EthClient(), contract, val)
 				if exists {
 					fmt.Printf("\n[warning] Element %v exists in list!\n", val.String())
@@ -165,7 +165,7 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Post-condition: Has element been added to the list?
-			postCondition := func(ctx context.Context) bool {
+			postCondition := func() bool {
 				return elementExists(ctx, account.EthClient(), contract, val)
 			}
 
@@ -198,7 +198,7 @@ var _ = Describe("contracts", func() {
 			fmt.Printf("\n\x1b[37;1mDeleting %v from list\x1b[0m", val.String())
 
 			// Pre-condition: is list is empty or is element absent in list?
-			preCondition := func(ctx context.Context) bool {
+			preCondition := func() bool {
 
 				// Read size of list
 				size, err := size(ctx, account.EthClient(), contract)
@@ -222,7 +222,7 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Post-condition: Has element been deleted successfully?
-			postCondition := func(ctx context.Context) bool {
+			postCondition := func() bool {
 				return !elementExists(ctx, account.EthClient(), contract, val)
 			}
 
@@ -267,7 +267,7 @@ var _ = Describe("contracts", func() {
 	}
 
 	rand.Seed(time.Now().Unix())
-	testedNetworks := []string{"kovan", "ropsten"}
+	testedNetworks := []string{"ropsten"}
 
 	keystorePaths := []string{"test/keystore.ropsten.json", "test/keystore.kovan.json"}
 	addresses := []string{"3a5e0b1158ca9ce861a80c3049d347a3f1825db0", "6b9b3e47c4c73db44f6a34064b21da8c62692a8c"}
@@ -276,9 +276,9 @@ var _ = Describe("contracts", func() {
 		n, waitBlocks int64
 	}{
 		{1, 3},
-		// {2, 3},
+		{2, 3},
 		{4, 2},
-		// {8, 1},
+		{8, 1},
 		// {16, 1},
 	}
 
