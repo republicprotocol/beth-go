@@ -154,12 +154,17 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			// There is another transaction with the same nonce and a higher or
 			// equal gas price as that of this transaction.
 			if strings.Compare(err.Error(), core.ErrReplaceUnderpriced.Error()) == 0 {
+				
 				// Update nonce and return error
 				nonce, err := account.client.EthClient.PendingNonceAt(ctx, account.transactOpts.From)
 				if err != nil {
 					return ErrIncorrectNonce
 				}
+
+				account.mu.Lock()
 				account.transactOpts.Nonce = big.NewInt(int64(nonce))
+				account.mu.Unlock()
+				
 				return ErrIncorrectNonce
 			}
 			log.Println(err)
