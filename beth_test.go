@@ -357,7 +357,8 @@ var _ = Describe("contracts", func() {
 						fmt.Printf("\n\x1b[37;1mSetting integer %v in the contract on %s\n\x1b[0m", val.String(), network)
 
 						// Set value in the contract
-						setInt(ctx, account, contract, val)
+						err = setInt(ctx, account, contract, val)
+						Expect(err).ShouldNot(HaveOccurred())
 
 						// Disable incrementing integers on parallel CI tests.
 						// fmt.Printf("\n\x1b[37;1mIncrementing %v in the contract on %s\x1b[0m\n", val.String(), network)
