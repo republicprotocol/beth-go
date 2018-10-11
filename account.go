@@ -307,9 +307,7 @@ func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOp
 
 	if strings.Compare(err.Error(), core.ErrReplaceUnderpriced.Error()) == 0 {
 		// Update nonce and return error
-		if nonce, err := account.client.EthClient.PendingNonceAt(ctx, account.transactOpts.From); err == nil {
-			account.transactOpts.Nonce = big.NewInt(int64(nonce))
-		}
+		account.transactOpts.Nonce.Add(account.transactOpts.Nonce, big.NewInt(1))
 		return tx, ErrIncorrectNonce
 	}
 
