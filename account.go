@@ -153,10 +153,16 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 		}(); err != nil {
 			// There is another transaction with the same nonce and a higher or
 			// equal gas price as that of this transaction.
-			if err == core.ErrReplaceUnderpriced {
+			if strings.Compare(err.Error(), core.ErrReplaceUnderpriced.Error()) == 0 {
+				// Update nonce and return error
+				nonce, err := account.client.EthClient.PendingNonceAt(ctx, account.transactOpts.From)
+				if err != nil {
+					return ErrIncorrectNonce
+				}
+				account.transactOpts.Nonce = big.NewInt(int64(nonce))
 				return ErrIncorrectNonce
 			}
-			log.Printf("\ngot error : %v; re-trying transaction\n", err)
+			log.Println(err)
 			continue
 		}
 
@@ -271,7 +277,7 @@ func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOp
 
 	// Process errors to check for nonce issues
 	// If error indicates that nonce is too low, increment nonce and retry
-	if err == core.ErrNonceTooLow || err == core.ErrReplaceUnderpriced || strings.Contains(err.Error(), "nonce is too low") {
+	if err == core.ErrNonceTooLow || strings.Contains(err.Error(), "nonce is too low") {
 		account.transactOpts.Nonce.Add(account.transactOpts.Nonce, big.NewInt(1))
 		return account.retryNonceTx(ctx, f)
 	}
