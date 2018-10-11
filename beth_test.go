@@ -128,7 +128,7 @@ var _ = Describe("contracts", func() {
 		}
 	}
 
-	increment := func(ctx context.Context, account beth.Account, contract *test.Bethtest, val *big.Int) error {
+	_ = func(ctx context.Context, account beth.Account, contract *test.Bethtest, val *big.Int) error {
 		val.Add(val, big.NewInt(1))
 
 		// Increment integer in the contract
