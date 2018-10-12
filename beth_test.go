@@ -137,8 +137,10 @@ var _ = Describe("contracts", func() {
 		}
 	}
 
-	// TODO: name this function 'increment' before enabling integer increment tests
-	_ = func(ctx context.Context, account beth.Account, contract *test.Bethtest, val *big.Int) error {
+	increment := func(account beth.Account, contract *test.Bethtest, val *big.Int) error {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Minute)
+		defer cancel()
+
 		val.Add(val, big.NewInt(1))
 
 		// Increment integer in the contract
@@ -382,11 +384,10 @@ var _ = Describe("contracts", func() {
 						err = setInt(account, contract, val)
 						Expect(err).ShouldNot(HaveOccurred())
 
-						// Disable incrementing integers on parallel CI tests.
-						// fmt.Printf("\n\x1b[37;1mIncrementing %v in the contract on %s\x1b[0m\n", val.String(), network)
+						fmt.Printf("\n\x1b[37;1mIncrementing %v in the contract on %s\x1b[0m\n", val.String(), network)
 
-						// // Increment the value in the contract
-						// increment(ctx, account, contract, val)
+						// Increment the value in the contract
+						increment(account, contract, val)
 					}
 				})
 			})
