@@ -286,7 +286,7 @@ func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOp
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(1 * time.Second):
+		case <-time.After(time.Second):
 		}
 
 		// Get updated nonce and retry 'f'
