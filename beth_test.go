@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math"
 	"math/big"
 	"math/rand"
@@ -36,10 +35,6 @@ var _ = Describe("contracts", func() {
 		if err != nil {
 			return nil, err
 		}
-		log.Println("has ", len(data))
-		log.Println("path", keystorePath)
-		log.Println("passphrase", passphrase)
-
 
 		// Parse the json data to a key object
 		key, err := keystore.DecryptKey(data, passphrase)
