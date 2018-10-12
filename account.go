@@ -261,12 +261,12 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 
 		transactor := &bind.TransactOpts{
 			From:     transactOpts.From,
-			Nonce:    transactOpts.Nonce,
+			Nonce:    big.NewInt(0).Set(transactOpts.Nonce),
 			Signer:   transactOpts.Signer,
 			Value:    value,
-			GasPrice: transactOpts.GasPrice,
+			GasPrice: big.NewInt(0).Set(transactOpts.GasPrice),
 			GasLimit: 21000,
-			Context:  transactOpts.Context,
+			Context:  ctx,
 		}
 
 		return bound.Transfer(transactor)
@@ -356,7 +356,17 @@ func (account *account) retryNonceTx(ctx context.Context, f func(*bind.TransactO
 	default:
 	}
 
-	tx, err := f(account.transactOpts)
+	transactor := &bind.TransactOpts{
+		From:     account.transactOpts.From,
+		Nonce:    big.NewInt(0).Set(account.transactOpts.Nonce),
+		Signer:   account.transactOpts.Signer,
+		Value:    big.NewInt(0),
+		GasPrice: big.NewInt(0).Set(account.transactOpts.GasPrice),
+		GasLimit: account.transactOpts.GasLimit,
+		Context:  ctx,
+	}
+
+	tx, err := f(transactor)
 
 	// On successful execution, increment nonce in transactOpts and return
 	if err == nil {

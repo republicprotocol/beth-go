@@ -101,16 +101,15 @@ var _ = Describe("contracts", func() {
 
 		for {
 			sleepFor := 0
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(time.Duration(sleepFor) * time.Millisecond):
-			}
+
 			err := account.Transact(ctx, nil, f, postCondition, waitBlocks)
 			if err != nil && err == beth.ErrNonceIsOutOfSync {
 				sleepFor += 500
 				if sleepFor >= 30000 {
 					sleepFor = 30000
+				}
+				if err := account.ResetToPendingNonce(ctx, time.Duration(sleepFor)); err != nil {
+					return err
 				}
 				continue
 			}
@@ -139,17 +138,16 @@ var _ = Describe("contracts", func() {
 		}
 
 		for {
-			sleepFor := 0
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(time.Duration(sleepFor) * time.Millisecond):
-			}
+			sleepFor := 1000
+
 			err := account.Transact(ctx, nil, f, postCondition, waitBlocks)
 			if err != nil && err == beth.ErrNonceIsOutOfSync {
-				sleepFor += 500
+				sleepFor += 10
 				if sleepFor >= 30000 {
 					sleepFor = 30000
+				}
+				if err := account.ResetToPendingNonce(ctx, time.Duration(sleepFor)); err != nil {
+					return err
 				}
 				continue
 			}
@@ -191,19 +189,17 @@ var _ = Describe("contracts", func() {
 
 			// Execute transaction
 			for {
-				sleepFor := 0
-				select {
-				case <-ctx.Done():
-					errs[i] = ctx.Err()
-					break
-				case <-time.After(time.Duration(sleepFor) * time.Millisecond):
-				}
+				sleepFor := 1000
 
 				err := account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
 				if err != nil && err == beth.ErrNonceIsOutOfSync {
-					sleepFor += 500
+					sleepFor += 10
 					if sleepFor >= 30000 {
 						sleepFor = 30000
+					}
+					if err := account.ResetToPendingNonce(ctx, time.Duration(sleepFor)); err != nil {
+						errs[i] = err
+						break
 					}
 					continue
 				}
@@ -267,18 +263,16 @@ var _ = Describe("contracts", func() {
 
 			// Execute delete tx
 			for {
-				sleepFor := 0
-				select {
-				case <-ctx.Done():
-					errs[i] = ctx.Err()
-					break
-				case <-time.After(time.Duration(sleepFor) * time.Millisecond):
-				}
+				sleepFor := 1000
 				err := account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
 				if err != nil && err == beth.ErrNonceIsOutOfSync {
-					sleepFor += 500
+					sleepFor += 10
 					if sleepFor >= 30000 {
 						sleepFor = 30000
+					}
+					if err := account.ResetToPendingNonce(ctx, time.Duration(sleepFor)); err != nil {
+						errs[i] = err
+						break
 					}
 					continue
 				}
