@@ -329,7 +329,7 @@ var _ = Describe("contracts", func() {
 	}
 
 	rand.Seed(time.Now().Unix())
-	testedNetworks := []string{/**"ropsten"**/ "kovan"}
+	testedNetworks := []string{ "kovan"}
 
 	keystorePaths := []string{"test/keystore.ropsten.json", "test/keystore.kovan.json"}
 	addresses := []string{"3a5e0b1158ca9ce861a80c3049d347a3f1825db0", "6b9b3e47c4c73db44f6a34064b21da8c62692a8c"}
@@ -358,8 +358,6 @@ var _ = Describe("contracts", func() {
 
 						account, err := newAccount(network, fmt.Sprintf("test/keystore.%s.json", network), os.Getenv("passphrase"))
 						Expect(err).ShouldNot(HaveOccurred())
-						log.Println(11111)
-						time.Sleep(time.Hour)
 
 						contract, err := bethTest(network, account)
 						Expect(err).ShouldNot(HaveOccurred())
