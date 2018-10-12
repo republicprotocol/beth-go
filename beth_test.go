@@ -101,7 +101,7 @@ var _ = Describe("contracts", func() {
 
 	setInt := func(account beth.Account, contract *test.Bethtest, val *big.Int) error {
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Minute)
 		defer cancel()
 
 		// Set integer in contract
@@ -138,7 +138,7 @@ var _ = Describe("contracts", func() {
 	}
 
 	increment := func(account beth.Account, contract *test.Bethtest, val *big.Int) error {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Minute)
 		defer cancel()
 
 		val.Add(val, big.NewInt(1))
@@ -177,7 +177,7 @@ var _ = Describe("contracts", func() {
 	}
 
 	appendToList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, waitBlocks int64) []error {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(len(values)+int(waitBlocks)+3)*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration((len(values)*10)+int(waitBlocks))*time.Minute)
 		defer cancel()
 
 		errs := make([]error, len(values))
@@ -245,7 +245,7 @@ var _ = Describe("contracts", func() {
 
 	deleteFromList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, waitBlocks int64) []error {
 		// Context
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(len(values)+int(waitBlocks)+3)*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration((len(values)*10)+int(waitBlocks))*time.Minute)
 		defer cancel()
 
 		errs := make([]error, len(values))
@@ -443,8 +443,8 @@ var _ = Describe("contracts", func() {
 			Context(fmt.Sprintf("when transferring eth from one account to an ethereum address on %s", network), func() {
 
 				It("should successfully transfer eth and not return an error", func() {
-					// Context with 5 minute timeout
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+					// Context with 10 minute timeout
+					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 					defer cancel()
 
 					toAddrs := []common.Address{}
