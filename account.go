@@ -29,9 +29,22 @@ var ErrPreConditionCheckFailed = errors.New("pre-condition check failed")
 // a transaction failed.
 var ErrPostConditionCheckFailed = errors.New("post-condition check failed")
 
-// ErrIncorrectNonce indicates that there exists another transaction with the
+// ErrNonceIsOutOfSync indicates that there exists another transaction with the
 // same nonce and a higher or equal gas price as the present transaction.
-var ErrIncorrectNonce = errors.New("there exists another transaction with the same nonce")
+var ErrNonceIsOutOfSync = errors.New("nonce is out of sync")
+
+// The TxExecutionSpeed indicates the tier of speed that the transaction falls
+// under while writing to the blockchain.
+type TxExecutionSpeed uint8
+
+// TxExecutionSpeed values.
+const (
+	Nil = TxExecutionSpeed(iota)
+	SafeLow
+	Average
+	Fast
+	Fastest
+)
 
 // Account is an Ethereum external account that can submit write transactions
 // to the Ethereum blockchain. An Account is defined by its public address and
@@ -49,7 +62,17 @@ type Account interface {
 	// first conduct a preConditionCheck and if the check passes, it will
 	// repeatedly execute the transaction followed by a postConditionCheck,
 	// until the transaction passes and the postConditionCheck returns true.
+	// Transact will immediately stop retrying if an ErrReplaceUnderpriced is
+	// returned from ethereum.
 	Transact(ctx context.Context, preConditionCheck func() bool, f func(*bind.TransactOpts) (*types.Transaction, error), postConditionCheck func() bool, confirmBlocks int64) error
+
+	// SetGasPrice allows the account holder to set the gasPrice to a specific
+	// value.
+	SetGasPrice(gasPrice float64)
+
+	// ResetToPendingNonce will wait for a 'coolDown' time (in milliseconds)
+	// before updating transaction nonce to current pending nonce.
+	ResetToPendingNonce(ctx context.Context, coolDown time.Duration) error
 }
 
 type account struct {
@@ -61,7 +84,7 @@ type account struct {
 }
 
 // NewAccount returns a user account for the provided private key which is
-// connected to a ethereum client.
+// connected to an Ethereum client.
 func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -88,7 +111,7 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 		callOpts:     new(bind.CallOpts),
 		transactOpts: transactOpts,
 	}
-	if err := account.updateGasPrice(); err != nil {
+	if err := account.updateGasPrice(Fast); err != nil {
 		return nil, fmt.Errorf("cannot update gas price = %v", err)
 	}
 
@@ -106,7 +129,9 @@ func (account *account) EthClient() Client {
 }
 
 // Transact attempts to execute a transaction on the Ethereum blockchain with
-// the retry functionality.
+// the retry functionality. It stops retrying if tx is completed without any
+// error, or if given context times-out, or if ErrReplaceUnderpriced is
+// returned from Ethereum.
 func (account *account) Transact(ctx context.Context, preConditionCheck func() bool, f func(*bind.TransactOpts) (*types.Transaction, error), postConditionCheck func() bool, waitForBlocks int64) error {
 
 	// Do not proceed any further if the (not nil) pre-condition check fails
@@ -133,7 +158,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			account.mu.Lock()
 			defer account.mu.Unlock()
 
-			if err := account.updateGasPrice(); err != nil {
+			if err := account.updateGasPrice(Fast); err != nil {
 				return fmt.Errorf("cannot update gas price = %v", err)
 			}
 
@@ -155,8 +180,8 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 		}(); err != nil {
 			// There is another transaction with the same nonce and a higher or
 			// equal gas price as that of this transaction.
-			if strings.Compare(err.Error(), ErrIncorrectNonce.Error()) == 0 {
-				return err
+			if strings.Compare(err.Error(), core.ErrReplaceUnderpriced.Error()) == 0 {
+				return ErrNonceIsOutOfSync
 			}
 			log.Println(err)
 			continue
@@ -250,6 +275,77 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 	return account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
 }
 
+// SetGasPrice will allow the caller to set gas price of transactOpts.
+func (account *account) SetGasPrice(gasPrice float64) {
+	account.mu.Lock()
+	defer account.mu.Unlock()
+
+	account.transactOpts.GasPrice = big.NewInt(int64(gasPrice * math.Pow10(9)))
+}
+
+// ResetToPendingNonce will allow the caller to reset nonce to pending nonce.
+// This function will wait for a 'coolDown' time (in milliseconds) before
+// updating the nonce in transactOpts.
+func (account *account) ResetToPendingNonce(ctx context.Context, coolDown time.Duration) error {
+	account.mu.Lock()
+	defer account.mu.Unlock()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(coolDown * time.Millisecond):
+	}
+
+	// Get pending nonce
+	nonce, err := account.client.EthClient.PendingNonceAt(ctx, account.transactOpts.From)
+	if err != nil {
+		return err
+	}
+	account.transactOpts.Nonce = big.NewInt(int64(nonce))
+	return nil
+}
+
+// SuggestedGasPrice returns the gas price that ethGasStation recommends for
+// transactions to be mined on Ethereum blockchain based on the speed provided.
+func SuggestedGasPrice(txSpeed TxExecutionSpeed) (*big.Int, error) {
+	request, err := http.NewRequest("GET", "https://ethgasstation.info/json/ethgasAPI.json", nil)
+	if err != nil {
+		return nil, fmt.Errorf("cannot build request to ethGasStation = %v", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	res, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("cannot connect to ethGasStationAPI = %v", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code %v from ethGasStation", res.StatusCode)
+	}
+
+	data := struct {
+		SafeLow float64 `json:"safeLow"`
+		Average float64 `json:"average"`
+		Fast    float64 `json:"fast"`
+		Fastest float64 `json:"fastest"`
+	}{}
+	if err = json.NewDecoder(res.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("cannot decode response body from ethGasStation = %v", err)
+	}
+
+	switch txSpeed {
+	case SafeLow:
+		return big.NewInt(int64(data.SafeLow * math.Pow10(8))), nil
+	case Average:
+		return big.NewInt(int64(data.Average * math.Pow10(8))), nil
+	case Fast:
+		return big.NewInt(int64(data.Fast * math.Pow10(8))), nil
+	case Fastest:
+		return big.NewInt(int64(data.Fastest * math.Pow10(8))), nil
+	default:
+		return nil, fmt.Errorf("invalid speed tier: %v", txSpeed)
+	}
+}
+
 // retryNonceTx retries transaction execution on the blockchain until nonce
 // errors are not seen, or until the context times out.
 func (account *account) retryNonceTx(ctx context.Context, f func(*bind.TransactOpts) (*types.Transaction, error)) (*types.Transaction, error) {
@@ -304,12 +400,6 @@ func (account *account) retryNonceTx(ctx context.Context, f func(*bind.TransactO
 		}
 	}
 
-	if strings.Compare(err.Error(), core.ErrReplaceUnderpriced.Error()) == 0 {
-		// Update nonce and return error
-		account.transactOpts.Nonce.Add(account.transactOpts.Nonce, big.NewInt(1))
-		return tx, ErrIncorrectNonce
-	}
-
 	return tx, err
 }
 
@@ -317,8 +407,8 @@ func (account *account) retryNonceTx(ctx context.Context, f func(*bind.TransactO
 // and update the account's transactOpts. This function expects the caller to
 // handle potential data race conditions (i.e. Locking of mutex prior to
 // calling this method)
-func (account *account) updateGasPrice() error {
-	gasPrice, err := suggestedGasPrice()
+func (account *account) updateGasPrice(txSpeed TxExecutionSpeed) error {
+	gasPrice, err := SuggestedGasPrice(txSpeed)
 	if err != nil {
 		return err
 	}
@@ -326,31 +416,4 @@ func (account *account) updateGasPrice() error {
 		account.transactOpts.GasPrice = gasPrice
 	}
 	return nil
-}
-
-// suggestedGasPrice returns the fast gas price that ethGasStation
-// recommends for transactions to be mined on Ethereum blockchain.
-func suggestedGasPrice() (*big.Int, error) {
-	request, err := http.NewRequest("GET", "https://ethgasstation.info/json/ethgasAPI.json", nil)
-	if err != nil {
-		return nil, fmt.Errorf("cannot build request to ethGasStation = %v", err)
-	}
-	request.Header.Set("Content-Type", "application/json")
-
-	res, err := (&http.Client{}).Do(request)
-	if err != nil {
-		return nil, fmt.Errorf("cannot connect to ethGasStationAPI = %v", err)
-	}
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code %v from ethGasStation", res.StatusCode)
-	}
-
-	data := struct {
-		Fast float64 `json:"fast"`
-	}{}
-	if err = json.NewDecoder(res.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("cannot decode response body from ethGasStation = %v", err)
-	}
-
-	return big.NewInt(int64(data.Fast * math.Pow10(8))), nil
 }

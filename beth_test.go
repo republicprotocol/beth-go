@@ -99,14 +99,14 @@ var _ = Describe("contracts", func() {
 		return
 	}
 
-	setInt := func(account beth.Account, contract *test.Bethtest, val *big.Int) error {
+	setInt := func(account beth.Account, contract *test.Bethtest, val *big.Int, waitBlocks int64) error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Minute)
 		defer cancel()
 
 		// Set integer in contract
-		f := func(txOpts bind.TransactOpts) (*types.Transaction, error) {
-			return contract.Set(&txOpts, val)
+		f := func(txOpts *bind.TransactOpts) (*types.Transaction, error) {
+			return contract.Set(txOpts, val)
 		}
 
 		// Post-condition: Confirm that the integer has the new value
@@ -125,8 +125,8 @@ var _ = Describe("contracts", func() {
 				return ctx.Err()
 			case <-time.After(time.Duration(sleepFor) * time.Millisecond):
 			}
-			err := account.Transact(ctx, nil, f, postCondition, 1)
-			if err != nil && err == beth.ErrIncorrectNonce {
+			err := account.Transact(ctx, nil, f, postCondition, waitBlocks)
+			if err != nil && err == beth.ErrNonceIsOutOfSync {
 				sleepFor += 500
 				if sleepFor >= 30000 {
 					sleepFor = 30000
@@ -137,15 +137,15 @@ var _ = Describe("contracts", func() {
 		}
 	}
 
-	increment := func(account beth.Account, contract *test.Bethtest, val *big.Int) error {
+	increment := func(account beth.Account, contract *test.Bethtest, val *big.Int, waitBlocks int64) error {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Minute)
 		defer cancel()
 
 		val.Add(val, big.NewInt(1))
 
 		// Increment integer in the contract
-		f := func(txOpts bind.TransactOpts) (*types.Transaction, error) {
-			return contract.Increment(&txOpts)
+		f := func(txOpts *bind.TransactOpts) (*types.Transaction, error) {
+			return contract.Increment(txOpts)
 		}
 
 		// Post-condition: confirm that previous value has been incremented
@@ -164,8 +164,8 @@ var _ = Describe("contracts", func() {
 				return ctx.Err()
 			case <-time.After(time.Duration(sleepFor) * time.Millisecond):
 			}
-			err := account.Transact(ctx, nil, f, postCondition, 2)
-			if err != nil && err == beth.ErrIncorrectNonce {
+			err := account.Transact(ctx, nil, f, postCondition, waitBlocks)
+			if err != nil && err == beth.ErrNonceIsOutOfSync {
 				sleepFor += 500
 				if sleepFor >= 30000 {
 					sleepFor = 30000
@@ -199,8 +199,8 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Append to list
-			f := func(txOpts bind.TransactOpts) (*types.Transaction, error) {
-				return contract.Append(&txOpts, val)
+			f := func(txOpts *bind.TransactOpts) (*types.Transaction, error) {
+				return contract.Append(txOpts, val)
 			}
 
 			// Post-condition: Has element been added to the list?
@@ -219,7 +219,7 @@ var _ = Describe("contracts", func() {
 				}
 
 				err := account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
-				if err != nil && err == beth.ErrIncorrectNonce {
+				if err != nil && err == beth.ErrNonceIsOutOfSync {
 					sleepFor += 500
 					if sleepFor >= 30000 {
 						sleepFor = 30000
@@ -275,8 +275,8 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Remove element
-			f := func(txOpts bind.TransactOpts) (*types.Transaction, error) {
-				return contract.Remove(&txOpts, val)
+			f := func(txOpts *bind.TransactOpts) (*types.Transaction, error) {
+				return contract.Remove(txOpts, val)
 			}
 
 			// Post-condition: Has element been deleted successfully?
@@ -294,7 +294,7 @@ var _ = Describe("contracts", func() {
 				case <-time.After(time.Duration(sleepFor) * time.Millisecond):
 				}
 				err := account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
-				if err != nil && err == beth.ErrIncorrectNonce {
+				if err != nil && err == beth.ErrNonceIsOutOfSync {
 					sleepFor += 500
 					if sleepFor >= 30000 {
 						sleepFor = 30000
@@ -365,6 +365,10 @@ var _ = Describe("contracts", func() {
 			n := entry.n
 			waitBlocks := entry.waitBlocks
 
+			if network == "ropsten" {
+				waitBlocks = 0
+			}
+
 			Context(fmt.Sprintf("when modifying an integer %v times in a contract deployed on %s", n, network), func() {
 
 				It("should write to the contract and not return an error", func() {
@@ -381,13 +385,13 @@ var _ = Describe("contracts", func() {
 						fmt.Printf("\n\x1b[37;1mSetting integer %v in the contract on %s\n\x1b[0m", val.String(), network)
 
 						// Set value in the contract
-						err = setInt(account, contract, val)
+						err = setInt(account, contract, val, waitBlocks)
 						Expect(err).ShouldNot(HaveOccurred())
 
 						fmt.Printf("\n\x1b[37;1mIncrementing %v in the contract on %s\x1b[0m\n", val.String(), network)
 
 						// Increment the value in the contract
-						increment(account, contract, val)
+						increment(account, contract, val, waitBlocks)
 					}
 				})
 			})
@@ -457,7 +461,7 @@ var _ = Describe("contracts", func() {
 						Expect(err).ShouldNot(HaveOccurred())
 						// Transfer 1 Eth to the other account's address
 						value, _ := big.NewFloat(1 * math.Pow10(18)).Int(nil)
-						if err := account.Transfer(ctx, toAddrs[i], value, int64(i+1)); err != nil {
+						if err := account.Transfer(ctx, toAddrs[i], value, waitBlocks); err != nil {
 							Expect(err).ShouldNot(HaveOccurred())
 						}
 					})
