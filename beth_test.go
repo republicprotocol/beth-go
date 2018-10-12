@@ -2,10 +2,10 @@ package beth_test
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math"
 	"math/big"
 	"math/rand"
@@ -19,49 +19,35 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	beth "github.com/republicprotocol/beth-go"
+	"github.com/republicprotocol/beth-go"
 	"github.com/republicprotocol/beth-go/test"
-	co "github.com/republicprotocol/co-go"
-	"github.com/republicprotocol/republic-go/crypto"
+	"github.com/republicprotocol/co-go"
 )
 
 var _ = Describe("contracts", func() {
 
 	newAccount := func(network, keystorePath string, passphrase string) (beth.Account, error) {
-
-		// Decrypt keystore
-		ks := crypto.Keystore{}
-
 		// Open keystore file
 		keyin, err := os.Open(keystorePath)
 		if err != nil {
 			return nil, err
 		}
-		json, err := ioutil.ReadAll(keyin)
+		data, err := ioutil.ReadAll(keyin)
+		if err != nil {
+			return nil, err
+		}
+		log.Println("has ", len(data))
+		log.Println("path", keystorePath)
+		log.Println("passphrase", passphrase)
+
+
+		// Parse the json data to a key object
+		key, err := keystore.DecryptKey(data, passphrase)
 		if err != nil {
 			return nil, err
 		}
 
-		var privKey *ecdsa.PrivateKey
-
-		// Decrypt private key using keystore and passphrase
-		if err := ks.DecryptFromJSON(json, passphrase); err != nil {
-			key, err := keystore.DecryptKey(json, passphrase)
-			if err != nil {
-				return nil, err
-			}
-			privKey = key.PrivateKey
-		} else {
-			privKey = ks.EcdsaKey.PrivateKey
-		}
-
-		// Return a user account to perform transactions
-		account, err := beth.NewAccount(fmt.Sprintf("https://%s.infura.io", network), privKey)
-		if err != nil {
-			return nil, err
-		}
-
-		return account, nil
+		return beth.NewAccount(fmt.Sprintf("https://%s.infura.io", network), key.PrivateKey)
 	}
 
 	bethTest := func(network string, account beth.Account) (*test.Bethtest, error) {
@@ -101,7 +87,7 @@ var _ = Describe("contracts", func() {
 
 	setInt := func(account beth.Account, contract *test.Bethtest, val *big.Int, waitBlocks int64) error {
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 
 		// Set integer in contract
@@ -343,7 +329,7 @@ var _ = Describe("contracts", func() {
 	}
 
 	rand.Seed(time.Now().Unix())
-	testedNetworks := []string{"ropsten", "kovan"}
+	testedNetworks := []string{ "kovan"}
 
 	keystorePaths := []string{"test/keystore.ropsten.json", "test/keystore.kovan.json"}
 	addresses := []string{"3a5e0b1158ca9ce861a80c3049d347a3f1825db0", "6b9b3e47c4c73db44f6a34064b21da8c62692a8c"}
@@ -380,6 +366,7 @@ var _ = Describe("contracts", func() {
 
 						account, err := newAccount(network, fmt.Sprintf("test/keystore.%s.json", network), os.Getenv("passphrase"))
 						Expect(err).ShouldNot(HaveOccurred())
+
 						contract, err := bethTest(network, account)
 						Expect(err).ShouldNot(HaveOccurred())
 
