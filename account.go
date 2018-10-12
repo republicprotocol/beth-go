@@ -112,7 +112,7 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 		transactOpts: transactOpts,
 	}
 	if err := account.updateGasPrice(Fast); err != nil {
-		return nil, fmt.Errorf("cannot update gas price = %v", err)
+		log.Println(fmt.Sprintf("cannot update gas price = %v", err))
 	}
 
 	return account, nil
@@ -159,7 +159,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			defer account.mu.Unlock()
 
 			if err := account.updateGasPrice(Fast); err != nil {
-				return fmt.Errorf("cannot update gas price = %v", err)
+				log.Println(fmt.Sprintf("cannot update gas price = %v", err))
 			}
 
 			// This will attempt to execute 'f' until no nonce error is

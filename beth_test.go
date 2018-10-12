@@ -327,8 +327,8 @@ var _ = Describe("contracts", func() {
 		n, waitBlocks int64
 	}{
 		{1, 3},
-		{2, 3},
-		{4, 2},
+		// {2, 3},
+		// {4, 2},
 		{8, 1},
 		// {16, 1},
 	}
