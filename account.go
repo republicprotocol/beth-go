@@ -274,7 +274,7 @@ func (account *account) retryNonceTx(ctx context.Context, f func(bind.TransactOp
 	}
 
 	// If error indicates that nonce is too low, decrement nonce and retry
-	if err == core.ErrNonceTooHigh {
+	if err == core.ErrNonceTooHigh || strings.Contains(err.Error(), "nonce is too high") {
 		account.transactOpts.Nonce.Sub(account.transactOpts.Nonce, big.NewInt(1))
 		return account.retryNonceTx(ctx, f)
 	}
