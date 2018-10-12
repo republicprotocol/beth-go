@@ -352,20 +352,24 @@ var _ = Describe("contracts", func() {
 		n, waitBlocks int64
 	}{
 		{1, 3},
-		// {2, 3},
+		{2, 3},
 		{4, 2},
-		// {8, 1},
+		{8, 1},
 		// {16, 1},
 	}
 
 	for _, network := range testedNetworks {
 		network := network
 
-		for _, entry := range tableParallelism {
+		for ind, entry := range tableParallelism {
 			n := entry.n
 			waitBlocks := entry.waitBlocks
 
+			// restrict ropsten tests
 			if network == "ropsten" {
+				if ind != 0 {
+					continue
+				}
 				waitBlocks = 0
 			}
 
