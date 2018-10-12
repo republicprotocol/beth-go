@@ -225,10 +225,7 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 	// Pre-condition check: Check if the account has enough balance
 	preConditionCheck := func() bool {
 		accountBalance, err := account.client.BalanceOf(ctx, account.Address(), &account.callOpts)
-		if err != nil || accountBalance.Cmp(value) <= 0 {
-			return false
-		}
-		return true
+		return err == nil && accountBalance.Cmp(value) >= 0
 	}
 
 	// Transaction: Transfer eth to address
