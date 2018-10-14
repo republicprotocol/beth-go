@@ -1,20 +1,29 @@
-package eth
+package beth
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
 	"math/big"
+	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/republicprotocol/eth-go/utils"
 )
+
+// ErrCannotConvertToBigInt is returned when string cannot be parsed into a
+// big.Int format.
+var ErrCannotConvertToBigInt = errors.New("cannot convert hex string to int: invalid format")
 
 // Client will have a connection to an ethereum client (specified by the url)
 type Client struct {
-	ethClient *ethclient.Client
+	EthClient *ethclient.Client
 	url       string
 }
 
@@ -27,7 +36,7 @@ func Connect(url string) (Client, error) {
 	}
 
 	return Client{
-		ethClient: ethClient,
+		EthClient: ethClient,
 		url:       url,
 	}, nil
 }
@@ -35,15 +44,11 @@ func Connect(url string) (Client, error) {
 // WaitMined waits for tx to be mined on the blockchain.
 // It stops waiting when the context is canceled.
 func (client *Client) WaitMined(ctx context.Context, tx *types.Transaction) (*types.Receipt, error) {
-	return bind.WaitMined(ctx, client.ethClient, tx)
+	return bind.WaitMined(ctx, client.EthClient, tx)
 }
 
 // Get will perform a read-only transaction on the ethereum blockchain.
-func (client *Client) Get(
-	ctx context.Context,
-	callOpts *bind.CallOpts,
-	f func(*bind.CallOpts) (interface{}, error),
-) (val interface{}, err error) {
+func (client *Client) Get(ctx context.Context, callOpts *bind.CallOpts, f func(*bind.CallOpts) error) (err error) {
 
 	sleepDurationMs := time.Duration(1000)
 
@@ -53,13 +58,13 @@ func (client *Client) Get(
 		select {
 		case <-ctx.Done():
 			if err == nil {
-				return val, ctx.Err()
+				return ctx.Err()
 			}
 			return
 		default:
 		}
 
-		if val, err = f(callOpts); err == nil {
+		if err = f(callOpts); err == nil {
 			return
 		}
 
@@ -67,7 +72,7 @@ func (client *Client) Get(
 		select {
 		case <-ctx.Done():
 			if err == nil {
-				return val, ctx.Err()
+				return ctx.Err()
 			}
 			return
 		case <-time.After(sleepDurationMs * time.Millisecond):
@@ -82,23 +87,16 @@ func (client *Client) Get(
 }
 
 // BalanceOf returns the ethereum balance of the addr passed.
-func (client *Client) BalanceOf(
-	ctx context.Context,
-	addr common.Address,
-	callOpts *bind.CallOpts,
-) (*big.Int, error) {
-
-	val, err := client.Get(ctx, callOpts, func(*bind.CallOpts) (interface{}, error) {
-		return client.ethClient.BalanceAt(ctx, addr, nil)
+func (client *Client) BalanceOf(ctx context.Context, addr common.Address, callOpts *bind.CallOpts) (val *big.Int, err error) {
+	err = client.Get(ctx, callOpts, func(*bind.CallOpts) (err error) {
+		val, err = client.EthClient.BalanceAt(ctx, addr, nil)
+		return
 	})
-	if err != nil {
-		return big.NewInt(0), err
-	}
-	return val.(*big.Int), nil
+	return
 }
 
-// GetBlockNumberByTxHash retrieves tx's block number using the tx hash.
-func (client *Client) GetBlockNumberByTxHash(ctx context.Context, hash string) (*big.Int, error) {
+// TxBlockNumber retrieves tx's block number using the tx hash.
+func (client *Client) TxBlockNumber(ctx context.Context, hash string) (*big.Int, error) {
 
 	type Result struct {
 		BlockNumber string `json:"blockNumber,omitempty"`
@@ -108,7 +106,8 @@ func (client *Client) GetBlockNumberByTxHash(ctx context.Context, hash string) (
 	}
 	var data JSONResponse
 
-	var jsonStr = `{"jsonrpc":"2.0","method":"eth_getTransactionByHash","params":["` + hash + `"],"id":1}`
+	var jsonStr = `{"jsonrpc":"2.0","method":"eth_getTransactionByHash",` +
+		`"params":["` + hash + `"],"id":1}`
 
 	// Keep retrying until a block number is returned or until context times out
 	for {
@@ -118,13 +117,13 @@ func (client *Client) GetBlockNumberByTxHash(ctx context.Context, hash string) (
 		default:
 		}
 
-		response, err := utils.SendRequest(ctx, client.url, jsonStr, data)
+		response, err := sendInfuraRequest(ctx, client.url, jsonStr)
 		if err != nil {
 			continue
 		}
-		data = response.(JSONResponse)
+		err = json.Unmarshal(response, &data)
 
-		if data.Result == (Result{}) || data.Result.BlockNumber == "" {
+		if err != nil || data.Result == (Result{}) || data.Result.BlockNumber == "" {
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -135,12 +134,13 @@ func (client *Client) GetBlockNumberByTxHash(ctx context.Context, hash string) (
 		break
 	}
 
-	return utils.HexToBigInt(data.Result.BlockNumber)
+	return hexToBigInt(data.Result.BlockNumber)
 }
 
-// GetCurrentBlockNumber will retrieve the current block that is confirmed by
+// CurrentBlockNumber will retrieve the current block that is confirmed by
 // infura.
-func (client *Client) GetCurrentBlockNumber(ctx context.Context) (*big.Int, error) {
+func (client *Client) CurrentBlockNumber(ctx context.Context) (*big.Int, error) {
+
 	type Result struct {
 		Number string `json:"number,omitempty"`
 	}
@@ -149,7 +149,8 @@ func (client *Client) GetCurrentBlockNumber(ctx context.Context) (*big.Int, erro
 	}
 	var data JSONResponse
 
-	var jsonStr = `{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest", false],"id":1}`
+	var jsonStr = `{"jsonrpc":"2.0","method":"eth_getBlockByNumber",` +
+		`"params":["latest", false],"id":1}`
 
 	// Keep retrying until a block number is returned or until context times out
 	for {
@@ -159,13 +160,13 @@ func (client *Client) GetCurrentBlockNumber(ctx context.Context) (*big.Int, erro
 		default:
 		}
 
-		response, err := utils.SendRequest(ctx, client.url, jsonStr, data)
+		response, err := sendInfuraRequest(ctx, client.url, jsonStr)
 		if err != nil {
 			continue
 		}
-		data = response.(JSONResponse)
+		err = json.Unmarshal(response, &data)
 
-		if data.Result == (Result{}) || data.Result.Number == "" {
+		if err != nil || data.Result == (Result{}) || data.Result.Number == "" {
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -176,5 +177,79 @@ func (client *Client) GetCurrentBlockNumber(ctx context.Context) (*big.Int, erro
 		break
 	}
 
-	return utils.HexToBigInt(data.Result.Number)
+	return hexToBigInt(data.Result.Number)
+}
+
+// hexToBigInt will convert a hex value in string format to the corresponding
+// big.Int value. For example : "0xFD6CE" will return big.Int(1038030).
+func hexToBigInt(hex string) (*big.Int, error) {
+	bigInt := big.NewInt(0)
+	bigIntStr := hex[2:]
+	bigInt, ok := bigInt.SetString(bigIntStr, 16)
+	if !ok {
+		return bigInt, ErrCannotConvertToBigInt
+	}
+	return bigInt, nil
+}
+
+// sendInfuraRequest will send a request to infura and return the unmarshalled data
+// back to the caller. It will retry until a valid response is returned, or
+// until the context times out.
+func sendInfuraRequest(ctx context.Context, url string, request string) (body []byte, err error) {
+
+	sleepDurationMs := time.Duration(1000)
+
+	// Retry until a valid response is returned or until context times out
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		if body, err = func() ([]byte, error) {
+			// Create a new http POST request
+			req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(request)))
+			if err != nil {
+				return nil, err
+			}
+
+			// Send http POST request
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			if err != nil {
+				return nil, err
+			}
+
+			// Decode response body
+			return func() ([]byte, error) {
+				defer resp.Body.Close()
+
+				// Check status
+				if resp.StatusCode != http.StatusOK {
+					return nil, fmt.Errorf("unexpected status %v", resp.StatusCode)
+				}
+				// Check body
+				if resp.Body != nil {
+					return ioutil.ReadAll(resp.Body)
+				}
+				return nil, fmt.Errorf("response body is nil")
+			}()
+		}(); err == nil {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(sleepDurationMs * time.Millisecond):
+
+		}
+
+		// Increase delay for next round but saturate at 30s
+		sleepDurationMs = time.Duration(float64(sleepDurationMs) * 1.6)
+		if sleepDurationMs > 30000 {
+			sleepDurationMs = 30000
+		}
+	}
+	return
 }

@@ -1,37 +1,14 @@
-***Design Document***
+***Beth-go (Better Ethereum Library)***
 
+Beth is a library that will provide functions that can interact with Ethereum consistently, given the issues that are observed in Ethereum. The major functions in this library (along with proposed code design) is discussed as follows:
 
-**`SendTx(f func() (tx,error)) (tx, error)`**
+**Transact**
 
-This method will execute the function `f` until no nonce related errors are observed. It will finally return a transaction and error. _(Same as the implementation in `republic-go`)_. 
+This function will perform write operations (with retry capability) on the blockchain. `Transact` will also handle transaction details such as nonce and gas-price (based on the current fast gas-price estimate). However, the caller is expected to set gas-limit for each write transaction on the blockchain. This function will also wait for a user specified number of confirmation blocks to be seen on the blockchain post the executed transaction.
 
-
-**`SuggestGasPrice(ctx) (uint64, error)`**
-
-- go-ethereum : `ethClient.SuggestGasPrice(ctx)` retrieves the currently suggested gas price to allow a timely execution of a transaction.
-- web3 : `web3.eth.gasPrice` returns the current gas price, which is determined by the x latest blocks median gas price. 
-
-_Note: Not sure if these methods are completely reliable since `web3` gets its value from the nodes. See [issue](https://github.com/ethereum/web3.js/issues/1230)._
-
-_Update: The gasPrice method will be invoked until a 2/3rds majority answer is received. If a majority is not received even after a specified time, the average of all the values received uptil that point is returned._ 
-
-
-**`Write(context, preCondition func(), f func(), postCondition func()) (error)`**
-
-This method will execute the following functions (in the order it appears).
-
-- `preCondition func() bool` will execute the necessary checks before executing the transaction on the blockchain. It will return true, if the checks pass. Otherwise, it will retry (with exponential delay on each attempt) until the checks pass or the context is done.
-
-- `SuggestGasPrice` to set gas price for the transaction to be executed.
-
-- `f func() (tx, error)` is executed once the `preCondition` returns true. This will attempt to write the transaction on the blockchain.
-
-- `postCondition func() bool` : Rather than waiting for `patchedWaitMined`, a `postCondition` function which will check the state of the write operation will be executed (i.e, For a `settle` operation, the status of the order is checked to see if it is `Settled` on the blockchain). This function will wait for an approximate number of blocks before checking the status and `postCondition` will be retried once if the check does not pass. 
-
-`Write` will retry from `SuggestGasPrice` (with exponential time delay, starting with 1 second) until `ctx` is done or `postCondition` returns true.
 
 ```
-func Write(ctx context.Context, preConditionCheck func() bool, f func() (tx, error), postConditionCheck func() bool) error {
+func Transact(ctx context.Context, preConditionCheck func() bool, f func() (tx, error), postConditionCheck func() bool, waitBlocks int) error {
 
     preconditionCheck(ctx)
 
@@ -44,16 +21,7 @@ func Write(ctx context.Context, preConditionCheck func() bool, f func() (tx, err
         }
 
         func() {
-            innerCtx, innerCancel := context.WithTimeout(ctx, time.Minute)
-            defer innerCancel()
-
-            // TODO: Get suggestion gas price.
-
-            gasLimitEstimates := [3]int{}
-            co.ParForAll(3, func(i int) {
-                // TODO: Estimate gas limit.
-                gasLimitEstimates[i] = // ...
-            })
+            // Set gas-price in txOpts
 
             RetryNonceTx(innerCtx, f)
 
@@ -61,9 +29,7 @@ func Write(ctx context.Context, preConditionCheck func() bool, f func() (tx, err
                 return
             }
 
-            // Transaction failed, sleep for 6 blocks before checking 
-            // postCondition and retrying.
-            sleep(for approx 6 blocks)
+            // Retry tx if err is not nil
 
         }()
 
@@ -71,116 +37,40 @@ func Write(ctx context.Context, preConditionCheck func() bool, f func() (tx, err
             return nil
         }
     }
+    txBlockNumber := TxBlockNumber(tx.Hash())
+
+    currentBlockNumber := CurrentBlockNumber()
+
+    while (currentBlockNumber - txBlockNumber) < waitBlocks {
+        sleep()
+        currentBlockNumber := CurrentBlockNumber()
+    } 
 }
 ```
 
+**Transfer**
 
-**`Read(ctx, f func()) (interface{}, error)`**
-
-Read will execute the function `f` until it does not return an error or until the `ctx` is done.
-
-
-**`TransferEth(transactOpts, value) (error)`**
-
-This function will be used to transfer eth from one ethereum address to another.
-
-```
-if balance (from) ≥ value + tx_fees {
-
-    gasPrice = SuggestGasPrice(ctx)
-    Set gasPrice in transactOpts
-
-    tx, err = SendTx( func() (tx, error) {
-        return TransferEth(transactOpts)
-    })
-
-    if err != nil {
-        return err
-    }
-
-    Call patchedWaitMined (tx) and return err
-}
-
-return Error("Insufficient funds")
-```
+This function will transfer Eth to specified ethereum address using the previously defined `Transact` call.
 
 
-**`BalanceOf(token) (value, error)`**
+**Get**
 
-This method will use the earlier defined `Read` function and return the result of `Read`.
+This function will execute read-only transactions on Ethereum until it does not return an error or until the given `context` is done. The values read from the operation are expected to be captured by the calling function.
+
+**Balance**
+
+This method will use the `Get` function to read the balances of the ethereum address.
 
 ```
-Read(ctx, func() (value, error) {
-    return ethereum.BalanceOf(token)
-})
-```
-
-```
-// Go
-type Account interface {
-    Balance() (*big.Int, error)
-    TransferEther(common.Address, *big.Int) error
-    // ...
+func (client *Client) BalanceOf(ctx context.Context, addr common.Address, callOpts *bind.CallOpts) (val *big.Int, err error) {
+    err = client.Get(
+        ctx,
+        callOpts,
+        func(*bind.CallOpts) (err error) {
+            val, err = client.ethClient.BalanceAt(ctx, addr, nil)
+            return
+        },
+    )
+    return
 }
-
-client, err := eth.Connect("https://mainnet.infura.io")
-client.GasLimitEstimate()
-client.GasPriceEstimate()
-client.BalanceOf(addr)
-client.Get(
-    func() (interface{}, error) { ... }
-)
-
-accnt := eth.NewAccount(client, privKey)
-accnt.Balance()
-accnt.TransferTo(toAddr, value)
-accnt.Tx(
-    func() bool { ... },
-    func() bool { ... },
-    func(ctx, txOpts, callOpts) (*types.Transaction, error) { ... },
-})
-
-// TypeScript
-interface Account {
-   function balance(): Promise<number>;
-   // ...
-}
-
-const accnt1 = new eth.Account(web3);
-accnt1
-  .balance()
-  .then(() => {
-  })
-  .catch(() => {
-  });
-
-const accnt2 = new eth.AccountFromPrivateKey(web3, privKey);
-
-eth.gasLimitEstimate(web3);
-eth.gasPriceEstimate(web3);
-
-// Rust
-struct BalanceFuture {
-    ...
-}
-
-impl Future<Item = int, Error = AccountError> for BalanceFuture {
-    ...
-}
-
-trait Account {
-    balance() -> BalanceFuture;
-    transfer_to() -> TransferToFuture;
-    tx() -> TxFuture;
-}
-
-let client = eth::connect("https://mainnet.infura.io");
-
-let mut accnt = eth::Account::new(&conn, privKey);
-accnt.balance();
-accnt.transfer_to(to_addr, value);
-accnt.tx(pre, post, || {
-
-});
-
 ```
