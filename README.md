@@ -1,2 +1,3 @@
-# eth-go
-A better Ethereum library, written in Go
+# BEth
+
+A better Ethereum library, written in Go.
