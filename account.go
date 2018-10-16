@@ -97,7 +97,7 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 
 	// Setup transact opts
 	transactOpts := bind.NewKeyedTransactor(privateKey)
-	nonce, err := client.EthClient.PendingNonceAt(ctx, transactOpts.From)
+	nonce, err := client.EthClient().PendingNonceAt(ctx, transactOpts.From)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 
 	// Transaction: Transfer eth to address
 	f := func(transactOpts *bind.TransactOpts) (*types.Transaction, error) {
-		bound := bind.NewBoundContract(to, abi.ABI{}, nil, account.client.EthClient, nil)
+		bound := bind.NewBoundContract(to, abi.ABI{}, nil, account.client.EthClient(), nil)
 
 		transactor := &bind.TransactOpts{
 			From:     transactOpts.From,
@@ -297,7 +297,7 @@ func (account *account) ResetToPendingNonce(ctx context.Context, coolDown time.D
 	}
 
 	// Get pending nonce
-	nonce, err := account.client.EthClient.PendingNonceAt(ctx, account.transactOpts.From)
+	nonce, err := account.client.EthClient().PendingNonceAt(ctx, account.transactOpts.From)
 	if err != nil {
 		return err
 	}
@@ -398,7 +398,7 @@ func (account *account) retryNonceTx(ctx context.Context, f func(*bind.TransactO
 		}
 
 		// Get updated nonce and retry 'f'
-		nonce, err = account.client.EthClient.PendingNonceAt(ctx, account.transactOpts.From)
+		nonce, err = account.client.EthClient().PendingNonceAt(ctx, account.transactOpts.From)
 		if err != nil {
 			continue
 		}

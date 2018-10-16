@@ -58,7 +58,8 @@ var _ = Describe("contracts", func() {
 			return nil, errors.New("invalid infura network")
 		}
 		// Get contract
-		return test.NewBethtest(contractAddr, bind.ContractBackend(account.EthClient().EthClient))
+		conn := account.EthClient()
+		return test.NewBethtest(contractAddr, bind.ContractBackend(conn.EthClient()))
 	}
 
 	elementExists := func(ctx context.Context, conn beth.Client, contract *test.Bethtest, val *big.Int) (exists bool) {

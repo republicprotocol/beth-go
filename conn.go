@@ -23,7 +23,7 @@ var ErrCannotConvertToBigInt = errors.New("cannot convert hex string to int: inv
 
 // Client will have a connection to an ethereum client (specified by the url)
 type Client struct {
-	EthClient *ethclient.Client
+	ethClient *ethclient.Client
 	url       string
 }
 
@@ -36,7 +36,7 @@ func Connect(url string) (Client, error) {
 	}
 
 	return Client{
-		EthClient: ethClient,
+		ethClient: ethClient,
 		url:       url,
 	}, nil
 }
@@ -44,7 +44,7 @@ func Connect(url string) (Client, error) {
 // WaitMined waits for tx to be mined on the blockchain.
 // It stops waiting when the context is canceled.
 func (client *Client) WaitMined(ctx context.Context, tx *types.Transaction) (*types.Receipt, error) {
-	return bind.WaitMined(ctx, client.EthClient, tx)
+	return bind.WaitMined(ctx, client.ethClient, tx)
 }
 
 // Get will perform a read-only transaction on the ethereum blockchain.
@@ -89,10 +89,15 @@ func (client *Client) Get(ctx context.Context, callOpts *bind.CallOpts, f func(*
 // BalanceOf returns the ethereum balance of the addr passed.
 func (client *Client) BalanceOf(ctx context.Context, addr common.Address, callOpts *bind.CallOpts) (val *big.Int, err error) {
 	err = client.Get(ctx, callOpts, func(*bind.CallOpts) (err error) {
-		val, err = client.EthClient.BalanceAt(ctx, addr, nil)
+		val, err = client.ethClient.BalanceAt(ctx, addr, nil)
 		return
 	})
 	return
+}
+
+// EthClient returns the ethereum client connection.
+func (client *Client) EthClient() *ethclient.Client {
+	return client.ethClient
 }
 
 // TxBlockNumber retrieves tx's block number using the tx hash.
