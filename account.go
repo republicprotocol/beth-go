@@ -33,6 +33,14 @@ var ErrPostConditionCheckFailed = errors.New("post-condition check failed")
 // same nonce and a higher or equal gas price as the present transaction.
 var ErrNonceIsOutOfSync = errors.New("nonce is out of sync")
 
+// ErrDuplicateAddress indicates that there exists another address that has
+// been mapped to the same key.
+var ErrDuplicateAddress = errors.New("the key has already been mapped to another address")
+
+// ErrAddressNotFound indicates that the given key is not present in the
+// address book.
+var ErrAddressNotFound = errors.New("key does not have an entry in the address book")
+
 // The TxExecutionSpeed indicates the tier of speed that the transaction falls
 // under while writing to the blockchain.
 type TxExecutionSpeed uint8
@@ -54,6 +62,12 @@ type Account interface {
 
 	// Address returns the ethereum address of the account holder.
 	Address() common.Address
+
+	// Store address in address book.
+	WriteAddress(key string, address common.Address) error
+
+	// ReadAddress returns address mapped to the given key in the address book.
+	ReadAddress(key string) (common.Address, error)
 
 	// Transfer sends the specified value of Eth to the given address.
 	Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) error
@@ -81,6 +95,8 @@ type account struct {
 
 	callOpts     *bind.CallOpts
 	transactOpts *bind.TransactOpts
+
+	addressBook map[string]common.Address
 }
 
 // NewAccount returns a user account for the provided private key which is
@@ -110,6 +126,8 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 
 		callOpts:     new(bind.CallOpts),
 		transactOpts: transactOpts,
+
+		addressBook: map[string]common.Address{},
 	}
 	if err := account.updateGasPrice(Fast); err != nil {
 		log.Println(fmt.Sprintf("cannot update gas price = %v", err))
@@ -121,6 +139,21 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 // Address returns the ethereum address of the account.
 func (account *account) Address() common.Address {
 	return account.transactOpts.From
+}
+
+func (account *account) WriteAddress(key string, address common.Address) error {
+	if _, ok := account.addressBook[key]; ok {
+		return ErrDuplicateAddress
+	}
+	account.addressBook[key] = address
+	return nil
+}
+
+func (account *account) ReadAddress(key string) (common.Address, error) {
+	if address, ok := account.addressBook[key]; ok {
+		return address, nil
+	}
+	return common.Address{}, ErrAddressNotFound
 }
 
 // EthClient returns the ethereum client that the account is connected to.
