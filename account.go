@@ -288,7 +288,7 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 
 	// Pre-condition check: Check if the account has enough balance
 	preConditionCheck := func() bool {
-		accountBalance, err := account.client.BalanceOf(ctx, account.Address(), account.callOpts)
+		accountBalance, err := account.client.BalanceOf(ctx, account.Address())
 		return err == nil && accountBalance.Cmp(value) >= 0
 	}
 

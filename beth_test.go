@@ -64,16 +64,16 @@ var _ = Describe("contracts", func() {
 
 	elementExists := func(ctx context.Context, conn beth.Client, contract *test.Bethtest, val *big.Int) (exists bool) {
 		exists = false
-		_ = conn.Get(ctx, &bind.CallOpts{}, func(callOpts *bind.CallOpts) (err error) {
-			_, exists, err = contract.Get(callOpts, val)
+		_ = conn.Get(ctx, func() (err error) {
+			_, exists, err = contract.Get(&bind.CallOpts{}, val)
 			return
 		})
 		return
 	}
 
 	read := func(ctx context.Context, conn beth.Client, contract *test.Bethtest) (newVal *big.Int, err error) {
-		err = conn.Get(ctx, &bind.CallOpts{}, func(callOpts *bind.CallOpts) (err error) {
-			newVal, err = contract.Read(callOpts)
+		err = conn.Get(ctx, func() (err error) {
+			newVal, err = contract.Read(&bind.CallOpts{})
 			return
 		})
 
@@ -214,8 +214,8 @@ var _ = Describe("contracts", func() {
 
 	size := func(ctx context.Context, conn beth.Client, contract *test.Bethtest) (size *big.Int, err error) {
 		size = big.NewInt(0)
-		err = conn.Get(ctx, &bind.CallOpts{}, func(callOpts *bind.CallOpts) (err error) {
-			size, err = contract.Size(callOpts)
+		err = conn.Get(ctx, func() (err error) {
+			size, err = contract.Size(&bind.CallOpts{})
 			return
 		})
 		return

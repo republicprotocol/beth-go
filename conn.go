@@ -48,7 +48,7 @@ func (client *Client) WaitMined(ctx context.Context, tx *types.Transaction) (*ty
 }
 
 // Get will perform a read-only transaction on the ethereum blockchain.
-func (client *Client) Get(ctx context.Context, callOpts *bind.CallOpts, f func(*bind.CallOpts) error) (err error) {
+func (client *Client) Get(ctx context.Context, f func() error) (err error) {
 
 	sleepDurationMs := time.Duration(1000)
 
@@ -64,7 +64,7 @@ func (client *Client) Get(ctx context.Context, callOpts *bind.CallOpts, f func(*
 		default:
 		}
 
-		if err = f(callOpts); err == nil {
+		if err = f(); err == nil {
 			return
 		}
 
@@ -87,8 +87,8 @@ func (client *Client) Get(ctx context.Context, callOpts *bind.CallOpts, f func(*
 }
 
 // BalanceOf returns the ethereum balance of the addr passed.
-func (client *Client) BalanceOf(ctx context.Context, addr common.Address, callOpts *bind.CallOpts) (val *big.Int, err error) {
-	err = client.Get(ctx, callOpts, func(*bind.CallOpts) (err error) {
+func (client *Client) BalanceOf(ctx context.Context, addr common.Address) (val *big.Int, err error) {
+	err = client.Get(ctx, func() (err error) {
 		val, err = client.ethClient.BalanceAt(ctx, addr, nil)
 		return
 	})
