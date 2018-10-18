@@ -87,6 +87,10 @@ type Account interface {
 	// ResetToPendingNonce will wait for a 'coolDown' time (in milliseconds)
 	// before updating transaction nonce to current pending nonce.
 	ResetToPendingNonce(ctx context.Context, coolDown time.Duration) error
+
+	// FormatTransactionView returns the formatted string with the URL at which
+	// the transaction can be viewed.
+	FormatTransactionView(msg, txHash string) (string, error)
 }
 
 type account struct {
@@ -336,6 +340,27 @@ func (account *account) ResetToPendingNonce(ctx context.Context, coolDown time.D
 	}
 	account.transactOpts.Nonce = big.NewInt(int64(nonce))
 	return nil
+}
+
+// FormatTransactionView returns the formatted string with the URL at which the
+// transaction can be viewed.
+func (account *account) FormatTransactionView(msg, txHash string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	netID, err := account.client.ethClient.NetworkID(ctx)
+	if err != nil {
+		return "", err
+	}
+	switch netID.Int64() {
+	case 1:
+		return fmt.Sprintf("%s, the transaction can be viewed at https://etherscan.io/tx/%s", msg, txHash), nil
+	case 3:
+		return fmt.Sprintf("%s, the transaction can be viewed at https://ropsten.etherscan.io/tx/%s", msg, txHash), nil
+	case 42:
+		return fmt.Sprintf("%s, the transaction can be viewed at https://kovan.etherscan.io/tx/%s", msg, txHash), nil
+	default:
+		return "", fmt.Errorf("unknown network id : %d", netID.Int64())
+	}
 }
 
 // SuggestedGasPrice returns the gas price that ethGasStation recommends for
