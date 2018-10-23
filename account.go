@@ -181,7 +181,8 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 
 	// Keep retrying 'f' until the post-condition check passes or the context
 	// times out.
-	for {
+	var postConPassed = false
+	for !postConPassed {
 		// If context is done, return error
 		select {
 		case <-ctx.Done():
@@ -221,14 +222,25 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 				return ErrNonceIsOutOfSync
 			}
 			log.Println(err)
-			continue
+		}
+
+		for i := 0; i < 180; i++ {
+			select {
+			case <-ctx.Done():
+				return ErrPostConditionCheckFailed
+			default:
+				if postConditionCheck == nil || postConditionCheck() {
+					postConPassed = true
+				}
+			}
+			if postConPassed {
+				break
+			}
+			time.Sleep(time.Second)
 		}
 
 		// If post-condition check passes, proceed to wait for a specified
 		// number of blocks to be confirmed after the transaction's block
-		if postConditionCheck == nil || postConditionCheck() {
-			break
-		}
 
 		// Wait for sometime before attempting to execute the transaction
 		// again. If context is done, return error to indicate that
@@ -237,7 +249,6 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 		case <-ctx.Done():
 			return ErrPostConditionCheckFailed
 		case <-time.After(sleepDurationMs * time.Millisecond):
-
 		}
 
 		// Increase delay for next round but saturate at 30s
