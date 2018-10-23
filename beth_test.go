@@ -71,14 +71,14 @@ var _ = Describe("contracts", func() {
 		return
 	}
 
-	read := func(ctx context.Context, conn beth.Client, contract *test.Bethtest) (newVal *big.Int, err error) {
-		err = conn.Get(ctx, func() (err error) {
-			newVal, err = contract.Read(&bind.CallOpts{})
-			return
-		})
+	read := func(ctx context.Context, conn beth.Client, contract *test.Bethtest) ( *big.Int, error) {
+		newVal, err := contract.Read(&bind.CallOpts{})
+		if err != nil {
+			return nil, err
+		}
 
 		fmt.Printf("[info] Value in contract is %v\n", newVal.String())
-		return
+		return newVal, nil
 	}
 
 	setInt := func(account beth.Account, contract *test.Bethtest, val *big.Int, waitBlocks int64) error {
