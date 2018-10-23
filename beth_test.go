@@ -71,12 +71,11 @@ var _ = Describe("contracts", func() {
 		return
 	}
 
-	read := func(ctx context.Context, conn beth.Client, contract *test.Bethtest) ( *big.Int, error) {
+	read := func(ctx context.Context, conn beth.Client, contract *test.Bethtest) (*big.Int, error) {
 		newVal, err := contract.Read(&bind.CallOpts{})
 		if err != nil {
-			return nil, err
+			return nil ,err
 		}
-
 		fmt.Printf("[info] Value in contract is %v\n", newVal.String())
 		return newVal, nil
 	}
@@ -100,22 +99,7 @@ var _ = Describe("contracts", func() {
 			return newVal.Cmp(val) == 0
 		}
 
-		for {
-			sleepFor := 0
-
-			err := account.Transact(ctx, nil, f, postCondition, waitBlocks)
-			if err != nil && err == beth.ErrNonceIsOutOfSync {
-				sleepFor += 500
-				if sleepFor >= 30000 {
-					sleepFor = 30000
-				}
-				if err := account.ResetToPendingNonce(ctx, time.Duration(sleepFor)); err != nil {
-					return err
-				}
-				continue
-			}
-			return err
-		}
+		return  account.Transact(ctx, nil, f, postCondition, waitBlocks)
 	}
 
 	increment := func(account beth.Account, contract *test.Bethtest, val *big.Int, waitBlocks int64) error {
@@ -138,22 +122,8 @@ var _ = Describe("contracts", func() {
 			return newVal.Cmp(val) >= 0
 		}
 
-		for {
-			sleepFor := 1000
+		return  account.Transact(ctx, nil, f, postCondition, waitBlocks)
 
-			err := account.Transact(ctx, nil, f, postCondition, waitBlocks)
-			if err != nil && err == beth.ErrNonceIsOutOfSync {
-				sleepFor += 10
-				if sleepFor >= 30000 {
-					sleepFor = 30000
-				}
-				if err := account.ResetToPendingNonce(ctx, time.Duration(sleepFor)); err != nil {
-					return err
-				}
-				continue
-			}
-			return err
-		}
 	}
 
 	appendToList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, waitBlocks int64) []error {
@@ -189,24 +159,7 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Execute transaction
-			for {
-				sleepFor := 1000
-
-				err := account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
-				if err != nil && err == beth.ErrNonceIsOutOfSync {
-					sleepFor += 10
-					if sleepFor >= 30000 {
-						sleepFor = 30000
-					}
-					if err := account.ResetToPendingNonce(ctx, time.Duration(sleepFor)); err != nil {
-						errs[i] = err
-						break
-					}
-					continue
-				}
-				errs[i] = err
-				break
-			}
+			errs[i] = account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
 		})
 
 		return errs
@@ -330,7 +283,7 @@ var _ = Describe("contracts", func() {
 		{1, 3},
 		// {2, 3},
 		// {4, 2},
-		{8, 1},
+		// {8, 1},
 		// {16, 1},
 	}
 
@@ -365,14 +318,27 @@ var _ = Describe("contracts", func() {
 
 						fmt.Printf("\n\x1b[37;1mSetting integer %v in the contract on %s\n\x1b[0m", val.String(), network)
 
+						ethClient := account.EthClient()
+						nonceBefore, err  := ethClient.EthClient().NonceAt(context.Background(), account.Address(),nil)
+						Expect(err).ShouldNot(HaveOccurred())
+
 						// Set value in the contract
 						err = setInt(account, contract, val, waitBlocks)
 						Expect(err).ShouldNot(HaveOccurred())
 
+						nonceMid, err  := ethClient.EthClient().NonceAt(context.Background(), account.Address(),nil)
+						Expect(err).ShouldNot(HaveOccurred())
+						Expect(nonceMid - nonceBefore).Should(Equal(uint64(1)))
+
 						fmt.Printf("\n\x1b[37;1mIncrementing %v in the contract on %s\x1b[0m\n", val.String(), network)
 
 						// Increment the value in the contract
-						increment(account, contract, val, waitBlocks)
+						err = increment(account, contract, val, waitBlocks)
+						Expect(err).ShouldNot(HaveOccurred())
+
+						nonceAfter, err := ethClient.EthClient().NonceAt(context.Background(), account.Address(),nil)
+						Expect(err).ShouldNot(HaveOccurred())
+						Expect(nonceAfter - nonceMid).Should(Equal(uint64(1)))
 					}
 				})
 			})
