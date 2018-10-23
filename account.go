@@ -219,13 +219,12 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			// There is another transaction with the same nonce and a higher or
 			// equal gas price as that of this transaction.
 			if strings.Compare(err.Error(), core.ErrReplaceUnderpriced.Error()) == 0 {
-				return ErrNonceIsOutOfSync
+				return g
 			}
 			log.Println(err)
-			continue
 		}
 
-		for i := 0; i <24; i++ {
+		for i := 0; i < 180 ; i++ {
 			select {
 			case <-ctx.Done():
 				return ErrPostConditionCheckFailed
@@ -237,7 +236,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			if postConPassed {
 				break
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(time.Second)
 		}
 
 		// If post-condition check passes, proceed to wait for a specified
