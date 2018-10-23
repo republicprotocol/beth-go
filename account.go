@@ -135,6 +135,7 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 	}
 	if err := account.updateGasPrice(Fast); err != nil {
 		log.Println(fmt.Sprintf("cannot update gas price = %v", err))
+		account.transactOpts.GasPrice = big.NewInt(11)
 	}
 
 	return account, nil
@@ -207,14 +208,14 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			if err != nil {
 				return err
 			}
+			txHash = tx.Hash()
 
-			receipt, err := account.client.WaitMined(innerCtx, tx)
+			_, err = account.client.WaitMined(innerCtx, tx)
 			if err != nil {
 				return err
 			}
 
 			// Transaction did not error, proceed to post-condition checks
-			txHash = receipt.TxHash
 			return nil
 		}(); err != nil {
 			// There is another transaction with the same nonce and a higher or
@@ -503,9 +504,6 @@ func (account *account) retryNonceTx(ctx context.Context, f func(*bind.TransactO
 func (account *account) updateGasPrice(txSpeed TxExecutionSpeed) error {
 	gasPrice, err := SuggestedGasPrice(txSpeed)
 	if err != nil {
-		if account.transactOpts.GasPrice == nil {
-			account.transactOpts.GasPrice = big.NewInt(11)
-		}
 		return err
 	}
 	if gasPrice != nil {
