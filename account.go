@@ -191,8 +191,6 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 		}
 
 		if err := func() error {
-			var err error
-
 			account.mu.Lock()
 			defer account.mu.Unlock()
 
@@ -202,12 +200,15 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 
 			// This will attempt to execute 'f' until no nonce error is
 			// returned or if ctx times out
-			tx, err := account.retryNonceTx(ctx, f)
+			innerCtx, innerCancel := context.WithTimeout(ctx, time.Minute)
+			defer innerCancel()
+
+			tx, err := account.retryNonceTx(innerCtx, f)
 			if err != nil {
 				return err
 			}
 
-			receipt, err := account.client.WaitMined(ctx, tx)
+			receipt, err := account.client.WaitMined(innerCtx, tx)
 			if err != nil {
 				return err
 			}
