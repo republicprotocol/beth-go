@@ -287,7 +287,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(5 * time.Millisecond):
+			case <-time.After(time.Second):
 			}
 			continue
 		}
