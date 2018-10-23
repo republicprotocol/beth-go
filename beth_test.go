@@ -74,7 +74,7 @@ var _ = Describe("contracts", func() {
 	read := func(ctx context.Context, conn beth.Client, contract *test.Bethtest) (*big.Int, error) {
 		newVal, err := contract.Read(&bind.CallOpts{})
 		if err != nil {
-			return nil ,err
+			return nil, err
 		}
 		fmt.Printf("[info] Value in contract is %v\n", newVal.String())
 		return newVal, nil
@@ -99,7 +99,7 @@ var _ = Describe("contracts", func() {
 			return newVal.Cmp(val) == 0
 		}
 
-		return  account.Transact(ctx, nil, f, postCondition, waitBlocks)
+		return account.Transact(ctx, nil, f, postCondition, waitBlocks)
 	}
 
 	increment := func(account beth.Account, contract *test.Bethtest, val *big.Int, waitBlocks int64) error {
@@ -122,8 +122,7 @@ var _ = Describe("contracts", func() {
 			return newVal.Cmp(val) >= 0
 		}
 
-		return  account.Transact(ctx, nil, f, postCondition, waitBlocks)
-
+		return account.Transact(ctx, nil, f, postCondition, waitBlocks)
 	}
 
 	appendToList := func(values []*big.Int, contract *test.Bethtest, account beth.Account, waitBlocks int64) []error {
@@ -216,24 +215,9 @@ var _ = Describe("contracts", func() {
 			}
 
 			// Execute delete tx
-			for {
-				sleepFor := 1000
-				err := account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
-				if err != nil && err == beth.ErrNonceIsOutOfSync {
-					sleepFor += 10
-					if sleepFor >= 30000 {
-						sleepFor = 30000
-					}
-					if err := account.ResetToPendingNonce(ctx, time.Duration(sleepFor)); err != nil {
-						errs[i] = err
-						break
-					}
-					continue
-				}
-				errs[i] = err
-				break
-			}
+			errs[i] = account.Transact(ctx, preCondition, f, postCondition, waitBlocks)
 		})
+
 		return errs
 	}
 
@@ -319,14 +303,14 @@ var _ = Describe("contracts", func() {
 						fmt.Printf("\n\x1b[37;1mSetting integer %v in the contract on %s\n\x1b[0m", val.String(), network)
 
 						ethClient := account.EthClient()
-						nonceBefore, err  := ethClient.EthClient().NonceAt(context.Background(), account.Address(),nil)
+						nonceBefore, err := ethClient.EthClient().NonceAt(context.Background(), account.Address(), nil)
 						Expect(err).ShouldNot(HaveOccurred())
 
 						// Set value in the contract
 						err = setInt(account, contract, val, waitBlocks)
 						Expect(err).ShouldNot(HaveOccurred())
 
-						nonceMid, err  := ethClient.EthClient().NonceAt(context.Background(), account.Address(),nil)
+						nonceMid, err := ethClient.EthClient().NonceAt(context.Background(), account.Address(), nil)
 						Expect(err).ShouldNot(HaveOccurred())
 						Expect(nonceMid - nonceBefore).Should(Equal(uint64(1)))
 
@@ -336,7 +320,7 @@ var _ = Describe("contracts", func() {
 						err = increment(account, contract, val, waitBlocks)
 						Expect(err).ShouldNot(HaveOccurred())
 
-						nonceAfter, err := ethClient.EthClient().NonceAt(context.Background(), account.Address(),nil)
+						nonceAfter, err := ethClient.EthClient().NonceAt(context.Background(), account.Address(), nil)
 						Expect(err).ShouldNot(HaveOccurred())
 						Expect(nonceAfter - nonceMid).Should(Equal(uint64(1)))
 					}
