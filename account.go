@@ -219,7 +219,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			// There is another transaction with the same nonce and a higher or
 			// equal gas price as that of this transaction.
 			if strings.Compare(err.Error(), core.ErrReplaceUnderpriced.Error()) == 0 {
-				return err
+				return ErrNonceIsOutOfSync
 			}
 			log.Println(err)
 		}
