@@ -312,9 +312,12 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 			Nonce:    big.NewInt(0).Set(transactOpts.Nonce),
 			Signer:   transactOpts.Signer,
 			Value:    value,
-			GasPrice: big.NewInt(0).Set(transactOpts.GasPrice),
+			GasPrice: big.NewInt(0),
 			GasLimit: 21000,
 			Context:  ctx,
+		}
+		if transactOpts.GasPrice != nil {
+			transactor.GasPrice.Set(transactOpts.GasPrice)
 		}
 
 		return bound.Transfer(transactor)
@@ -430,9 +433,12 @@ func (account *account) retryNonceTx(ctx context.Context, f func(*bind.TransactO
 		Nonce:    big.NewInt(0).Set(account.transactOpts.Nonce),
 		Signer:   account.transactOpts.Signer,
 		Value:    big.NewInt(0),
-		GasPrice: big.NewInt(0).Set(account.transactOpts.GasPrice),
+		GasPrice: big.NewInt(0),
 		GasLimit: account.transactOpts.GasLimit,
 		Context:  ctx,
+	}
+	if account.transactOpts.GasPrice != nil {
+		transactor.GasPrice.Set(account.transactOpts.GasPrice)
 	}
 
 	tx, err := f(transactor)
@@ -489,6 +495,9 @@ func (account *account) retryNonceTx(ctx context.Context, f func(*bind.TransactO
 func (account *account) updateGasPrice(txSpeed TxExecutionSpeed) error {
 	gasPrice, err := SuggestedGasPrice(txSpeed)
 	if err != nil {
+		if account.transactOpts.GasPrice == nil {
+			account.transactOpts.GasPrice = big.NewInt(11)
+		}
 		return err
 	}
 	if gasPrice != nil {
