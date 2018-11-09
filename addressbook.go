@@ -20,18 +20,18 @@ type Address struct {
 	Address string `json:"address"`
 }
 
-func preloadedAddressBook(network int64) AddressBook {
+func DefaultAddressBook(network int64) (AddressBook, error) {
 	defaultAddrBooks := DefaultAddressBooks{}
 	addrs := []Address{}
 	addrBook := AddressBook{}
 
 	defaultAddrBookData, err := ioutil.ReadFile("./addressbook.json")
 	if err != nil {
-		return addrBook
+		return addrBook, err
 	}
 
 	if err := json.Unmarshal(defaultAddrBookData, &defaultAddrBooks); err != nil {
-		return addrBook
+		return addrBook, err
 	}
 
 	switch network {
@@ -42,12 +42,12 @@ func preloadedAddressBook(network int64) AddressBook {
 	case 42:
 		addrs = defaultAddrBooks.Kovan
 	default:
-		return addrBook
+		return addrBook, nil
 	}
 
 	for _, addr := range addrs {
 		addrBook[addr.Name] = common.HexToAddress(addr.Address)
 	}
 
-	return addrBook
+	return addrBook, nil
 }
