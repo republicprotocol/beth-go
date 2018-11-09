@@ -100,7 +100,7 @@ type account struct {
 	callOpts     *bind.CallOpts
 	transactOpts *bind.TransactOpts
 
-	addressBook map[string]common.Address
+	addressBook AddressBook
 }
 
 // NewAccount returns a user account for the provided private key which is
@@ -123,6 +123,11 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 	}
 	transactOpts.Nonce = big.NewInt(0).SetUint64(nonce)
 
+	netID, err := client.ethClient.NetworkID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create account
 	account := &account{
 		mu:     new(sync.RWMutex),
@@ -131,7 +136,7 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 		callOpts:     new(bind.CallOpts),
 		transactOpts: transactOpts,
 
-		addressBook: map[string]common.Address{},
+		addressBook: preloadedAddressBook(netID.Int64()),
 	}
 	if err := account.updateGasPrice(Fast); err != nil {
 		log.Println(fmt.Sprintf("cannot update gas price = %v", err))
