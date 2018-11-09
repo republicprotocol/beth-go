@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -80,6 +82,9 @@ type Account interface {
 	// returned from ethereum.
 	Transact(ctx context.Context, preConditionCheck func() bool, f func(*bind.TransactOpts) (*types.Transaction, error), postConditionCheck func() bool, confirmBlocks int64) error
 
+	// Sign the given message with the account's private key.
+	Sign(msgHash []byte) ([]byte, error)
+
 	// SetGasPrice allows the account holder to set the gasPrice to a specific
 	// value.
 	SetGasPrice(gasPrice float64)
@@ -99,6 +104,8 @@ type account struct {
 
 	callOpts     *bind.CallOpts
 	transactOpts *bind.TransactOpts
+
+	privateKey *ecdsa.PrivateKey
 
 	addressBook AddressBook
 }
@@ -331,6 +338,11 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 	}
 
 	return account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
+}
+
+// Sign the given message with the account's private key.
+func (account *account) Sign(msgHash []byte) ([]byte, error) {
+	return crypto.Sign(msgHash, account.privateKey)
 }
 
 // SetGasPrice will allow the caller to set gas price of transactOpts.
