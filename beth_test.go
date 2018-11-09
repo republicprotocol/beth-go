@@ -11,6 +11,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -255,6 +257,17 @@ var _ = Describe("contracts", func() {
 		return err
 	}
 
+	loadAddressBook := func(network string) (beth.AddressBook, error) {
+		switch network {
+		case "ropsten":
+			return beth.DefaultAddressBook(3)
+		case "kovan":
+			return beth.DefaultAddressBook(42)
+		default:
+			return beth.AddressBook{}, nil
+		}
+	}
+
 	rand.Seed(time.Now().Unix())
 	testedNetworks := []string{"ropsten", "kovan"}
 
@@ -396,6 +409,71 @@ var _ = Describe("contracts", func() {
 							Expect(err).ShouldNot(HaveOccurred())
 						}
 					})
+				})
+			})
+
+			Context(fmt.Sprintf("when retrieving addresses on %s", network), func() {
+
+				It("should successfully return the address of RenExOrderbook", func() {
+					addrBook, err := loadAddressBook(network)
+					Expect(err).ShouldNot(HaveOccurred())
+					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
+					Expect(err).ShouldNot(HaveOccurred())
+					renExOrderbook, err := account.ReadAddress("RenExOrderbook")
+					Expect(renExOrderbook.String()).Should(Equal(addrBook["RenExOrderbook"].String()))
+				})
+
+				It("should successfully return the address of RenExSettlement", func() {
+					addrBook, err := loadAddressBook(network)
+					Expect(err).ShouldNot(HaveOccurred())
+					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
+					Expect(err).ShouldNot(HaveOccurred())
+					renExSettlement, err := account.ReadAddress("RenExSettlement")
+					Expect(renExSettlement.String()).Should(Equal(addrBook["RenExSettlement"].String()))
+				})
+
+				It("should successfully return the address of ERC20:WBTC", func() {
+					addrBook, err := loadAddressBook(network)
+					Expect(err).ShouldNot(HaveOccurred())
+					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
+					Expect(err).ShouldNot(HaveOccurred())
+					ERC20WBTC, err := account.ReadAddress("ERC20:WBTC")
+					Expect(ERC20WBTC.String()).Should(Equal(addrBook["ERC20:WBTC"].String()))
+				})
+
+				It("should successfully return the address of Swapper:ETH", func() {
+					addrBook, err := loadAddressBook(network)
+					Expect(err).ShouldNot(HaveOccurred())
+					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
+					Expect(err).ShouldNot(HaveOccurred())
+					SwapperETH, err := account.ReadAddress("Swapper:ETH")
+					Expect(SwapperETH.String()).Should(Equal(addrBook["Swapper:ETH"].String()))
+				})
+
+				It("should successfully return the address of Swapper:WBTC", func() {
+					addrBook, err := loadAddressBook(network)
+					Expect(err).ShouldNot(HaveOccurred())
+					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
+					Expect(err).ShouldNot(HaveOccurred())
+					SwapperWBTC, err := account.ReadAddress("Swapper:WBTC")
+					Expect(SwapperWBTC.String()).Should(Equal(addrBook["Swapper:WBTC"].String()))
+				})
+			})
+
+			Context("when signing messages", func() {
+				It("should successfully sign a message", func() {
+					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
+					Expect(err).ShouldNot(HaveOccurred())
+
+					msgHash := crypto.Keccak256([]byte("Message"))
+					sig, err := account.Sign(msgHash)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					publicKey, err := crypto.SigToPub(msgHash, sig)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					signerAddress := crypto.PubkeyToAddress(*publicKey)
+					Expect(signerAddress.String()).Should(Equal(account.Address().String()))
 				})
 			})
 		}
