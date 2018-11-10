@@ -257,14 +257,14 @@ var _ = Describe("contracts", func() {
 		return err
 	}
 
-	loadAddressBook := func(network string) (beth.AddressBook, error) {
+	loadAddressBook := func(network string) beth.AddressBook {
 		switch network {
 		case "ropsten":
 			return beth.DefaultAddressBook(3)
 		case "kovan":
 			return beth.DefaultAddressBook(42)
 		default:
-			return beth.AddressBook{}, nil
+			return beth.AddressBook{}
 		}
 	}
 
@@ -415,8 +415,7 @@ var _ = Describe("contracts", func() {
 			Context(fmt.Sprintf("when retrieving addresses on %s", network), func() {
 
 				It("should successfully return the address of RenExOrderbook", func() {
-					addrBook, err := loadAddressBook(network)
-					Expect(err).ShouldNot(HaveOccurred())
+					addrBook := loadAddressBook(network)
 					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
 					Expect(err).ShouldNot(HaveOccurred())
 					renExOrderbook, err := account.ReadAddress("RenExOrderbook")
@@ -424,8 +423,7 @@ var _ = Describe("contracts", func() {
 				})
 
 				It("should successfully return the address of RenExSettlement", func() {
-					addrBook, err := loadAddressBook(network)
-					Expect(err).ShouldNot(HaveOccurred())
+					addrBook := loadAddressBook(network)
 					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
 					Expect(err).ShouldNot(HaveOccurred())
 					renExSettlement, err := account.ReadAddress("RenExSettlement")
@@ -433,8 +431,7 @@ var _ = Describe("contracts", func() {
 				})
 
 				It("should successfully return the address of ERC20:WBTC", func() {
-					addrBook, err := loadAddressBook(network)
-					Expect(err).ShouldNot(HaveOccurred())
+					addrBook := loadAddressBook(network)
 					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
 					Expect(err).ShouldNot(HaveOccurred())
 					ERC20WBTC, err := account.ReadAddress("ERC20:WBTC")
@@ -442,8 +439,7 @@ var _ = Describe("contracts", func() {
 				})
 
 				It("should successfully return the address of Swapper:ETH", func() {
-					addrBook, err := loadAddressBook(network)
-					Expect(err).ShouldNot(HaveOccurred())
+					addrBook := loadAddressBook(network)
 					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
 					Expect(err).ShouldNot(HaveOccurred())
 					SwapperETH, err := account.ReadAddress("Swapper:ETH")
@@ -451,8 +447,7 @@ var _ = Describe("contracts", func() {
 				})
 
 				It("should successfully return the address of Swapper:WBTC", func() {
-					addrBook, err := loadAddressBook(network)
-					Expect(err).ShouldNot(HaveOccurred())
+					addrBook := loadAddressBook(network)
 					account, err := newAccount(network, keystorePaths[0], os.Getenv("passphrase"))
 					Expect(err).ShouldNot(HaveOccurred())
 					SwapperWBTC, err := account.ReadAddress("Swapper:WBTC")
