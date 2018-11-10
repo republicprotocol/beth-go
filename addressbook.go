@@ -6,62 +6,56 @@ import (
 
 type AddressBook map[string]common.Address
 
-type AddressBooks struct {
-	Mainnet []Address
-	Ropsten []Address
-	Kovan   []Address
-}
-
 type Address struct {
 	Name    string
 	Address string
 }
 
-var defaultAddrBooks = AddressBooks{
-	Mainnet: []Address{},
-	Ropsten: []Address{
-		Address{
-			Name:    "RenExOrderbook",
-			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
-		},
-		Address{
-			Name:    "RenExSettlement",
-			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
-		},
-		Address{
-			Name:    "ERC20:WBTC",
-			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
-		},
-		Address{
-			Name:    "Swapper:ETH",
-			Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
-		},
-		Address{
-			Name:    "Swapper:WBTC",
-			Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
-		},
+var MainnetAddresses = []Address{}
+
+var RopstenAddresses = []Address{
+	Address{
+		Name:    "RenExOrderbook",
+		Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
 	},
-	Kovan: []Address{
-		Address{
-			Name:    "RenExOrderbook",
-			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
-		},
-		Address{
-			Name:    "RenExSettlement",
-			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
-		},
-		Address{
-			Name:    "ERC20:WBTC",
-			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
-		},
-		Address{
-			Name:    "Swapper:ETH",
-			Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
-		},
-		Address{
-			Name:    "Swapper:WBTC",
-			Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
-		},
+	Address{
+		Name:    "RenExSettlement",
+		Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+	},
+	Address{
+		Name:    "ERC20:WBTC",
+		Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+	},
+	Address{
+		Name:    "Swapper:ETH",
+		Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
+	},
+	Address{
+		Name:    "Swapper:WBTC",
+		Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
+	},
+}
+
+var KovanAddresses = []Address{
+	Address{
+		Name:    "RenExOrderbook",
+		Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+	},
+	Address{
+		Name:    "RenExSettlement",
+		Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+	},
+	Address{
+		Name:    "ERC20:WBTC",
+		Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+	},
+	Address{
+		Name:    "Swapper:ETH",
+		Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
+	},
+	Address{
+		Name:    "Swapper:WBTC",
+		Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
 	},
 }
 
@@ -71,11 +65,11 @@ func DefaultAddressBook(network int64) AddressBook {
 
 	switch network {
 	case 1:
-		addrs = defaultAddrBooks.Mainnet
+		addrs = MainnetAddresses
 	case 3:
-		addrs = defaultAddrBooks.Ropsten
+		addrs = RopstenAddresses
 	case 42:
-		addrs = defaultAddrBooks.Kovan
+		addrs = KovanAddresses
 	default:
 		return addrBook
 	}
