@@ -135,11 +135,6 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 		return nil, err
 	}
 
-	addressBook, err := DefaultAddressBook(netID.Int64())
-	if err != nil {
-		return nil, err
-	}
-
 	// Create account
 	account := &account{
 		mu:     new(sync.RWMutex),
@@ -150,7 +145,7 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 
 		privateKey: privateKey,
 
-		addressBook: addressBook,
+		addressBook: DefaultAddressBook(netID.Int64()),
 	}
 	if err := account.updateGasPrice(Fast); err != nil {
 		log.Println(fmt.Sprintf("cannot update gas price = %v", err))

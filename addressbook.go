@@ -1,38 +1,73 @@
 package beth
 
 import (
-	"encoding/json"
-	"io/ioutil"
-
 	"github.com/ethereum/go-ethereum/common"
 )
 
 type AddressBook map[string]common.Address
 
-type DefaultAddressBooks struct {
-	Mainnet []Address `json:"mainnet"`
-	Ropsten []Address `json:"ropsten"`
-	Kovan   []Address `json:"kovan"`
+type AddressBooks struct {
+	Mainnet []Address
+	Ropsten []Address
+	Kovan   []Address
 }
 
 type Address struct {
-	Name    string `json:"name"`
-	Address string `json:"address"`
+	Name    string
+	Address string
 }
 
-func DefaultAddressBook(network int64) (AddressBook, error) {
-	defaultAddrBooks := DefaultAddressBooks{}
+var defaultAddrBooks = AddressBooks{
+	Mainnet: []Address{},
+	Ropsten: []Address{
+		Address{
+			Name:    "RenExOrderbook",
+			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+		},
+		Address{
+			Name:    "RenExSettlement",
+			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+		},
+		Address{
+			Name:    "ERC20:WBTC",
+			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+		},
+		Address{
+			Name:    "Swapper:ETH",
+			Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
+		},
+		Address{
+			Name:    "Swapper:WBTC",
+			Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
+		},
+	},
+	Kovan: []Address{
+		Address{
+			Name:    "RenExOrderbook",
+			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+		},
+		Address{
+			Name:    "RenExSettlement",
+			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+		},
+		Address{
+			Name:    "ERC20:WBTC",
+			Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+		},
+		Address{
+			Name:    "Swapper:ETH",
+			Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
+		},
+		Address{
+			Name:    "Swapper:WBTC",
+			Address: "0x2218fa20c33765e7e01671ee6aaca75fbaf3a974",
+		},
+	},
+}
+
+func DefaultAddressBook(network int64) AddressBook {
 	addrs := []Address{}
 	addrBook := AddressBook{}
-
-	defaultAddrBookData, err := ioutil.ReadFile("./addressbook.json")
-	if err != nil {
-		return addrBook, err
-	}
-
-	if err := json.Unmarshal(defaultAddrBookData, &defaultAddrBooks); err != nil {
-		return addrBook, err
-	}
 
 	switch network {
 	case 1:
@@ -42,12 +77,11 @@ func DefaultAddressBook(network int64) (AddressBook, error) {
 	case 42:
 		addrs = defaultAddrBooks.Kovan
 	default:
-		return addrBook, nil
+		return addrBook
 	}
 
 	for _, addr := range addrs {
 		addrBook[addr.Name] = common.HexToAddress(addr.Address)
 	}
-
-	return addrBook, nil
+	return addrBook
 }
