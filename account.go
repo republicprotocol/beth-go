@@ -14,13 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
-
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -62,9 +61,9 @@ const (
 // respective private key.
 type Account interface {
 
-	// BethClient returns the client that the account is connected to. Using 
-	// this client, read-only operations can be executed on Ethereum.
-	BethClient() Client
+	// Client that the account is connected to. Using the Client, read-only
+	// operations can be executed on Ethereum.
+	Client() Client
 
 	// EthClient returns the actual Ethereum client.
 	EthClient() *ethclient.Client
@@ -182,7 +181,7 @@ func (account *account) ReadAddress(key string) (common.Address, error) {
 	return common.Address{}, ErrAddressNotFound
 }
 
-func (account *account) BethClient() Client {
+func (account *account) Client() Client {
 	return account.client
 }
 

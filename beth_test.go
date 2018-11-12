@@ -93,7 +93,7 @@ var _ = Describe("contracts", func() {
 
 		// Post-condition: Confirm that the integer has the new value
 		postCondition := func() bool {
-			newVal, err := read(ctx, account.BethClient(), contract)
+			newVal, err := read(ctx, account.Client(), contract)
 			if err != nil {
 				return false
 			}
@@ -116,7 +116,7 @@ var _ = Describe("contracts", func() {
 
 		// Post-condition: confirm that previous value has been incremented
 		postCondition := func() bool {
-			newVal, err := read(ctx, account.BethClient(), contract)
+			newVal, err := read(ctx, account.Client(), contract)
 			if err != nil {
 				return false
 			}
@@ -140,7 +140,7 @@ var _ = Describe("contracts", func() {
 
 			// Pre-condition: Does element already exist in the list?
 			preCondition := func() bool {
-				exists := elementExists(ctx, account.BethClient(), contract, val)
+				exists := elementExists(ctx, account.Client(), contract, val)
 				if exists {
 					fmt.Printf("\n[warning] Element %v exists in list!\n", val.String())
 				}
@@ -155,7 +155,7 @@ var _ = Describe("contracts", func() {
 
 			// Post-condition: Has element been added to the list?
 			postCondition := func() bool {
-				return elementExists(ctx, account.BethClient(), contract, val)
+				return elementExists(ctx, account.Client(), contract, val)
 			}
 
 			// Execute transaction
@@ -190,14 +190,14 @@ var _ = Describe("contracts", func() {
 			preCondition := func() bool {
 
 				// Read size of list
-				size, err := size(ctx, account.BethClient(), contract)
+				size, err := size(ctx, account.Client(), contract)
 				if err != nil || size.Cmp(big.NewInt(0)) <= 0 {
 					fmt.Println("\n[warning] list is empty!")
 					return false
 				}
 
 				// Check if element is present
-				exists := elementExists(ctx, account.BethClient(), contract, val)
+				exists := elementExists(ctx, account.Client(), contract, val)
 				if !exists {
 					fmt.Printf("\n[warning] %v is not present in list!\n", val.String())
 				}
@@ -212,7 +212,7 @@ var _ = Describe("contracts", func() {
 
 			// Post-condition: Has element been deleted successfully?
 			postCondition := func() bool {
-				return !elementExists(ctx, account.BethClient(), contract, val)
+				return !elementExists(ctx, account.Client(), contract, val)
 			}
 
 			// Execute delete tx
@@ -348,7 +348,7 @@ var _ = Describe("contracts", func() {
 					Expect(err).ShouldNot(HaveOccurred())
 
 					// Retrieve original length of array
-					originalLength, err := size(context.Background(), account.BethClient(), contract)
+					originalLength, err := size(context.Background(), account.Client(), contract)
 					Expect(err).ShouldNot(HaveOccurred())
 					fmt.Printf("\n\x1b[37;1mThe size of array on %s is %v\n\x1b[0m", network, originalLength.String())
 
@@ -377,7 +377,7 @@ var _ = Describe("contracts", func() {
 					Expect(err).Should(Equal(beth.ErrPreConditionCheckFailed))
 
 					// Retrieve length of array after deleting the newly added elements
-					newLength, err := size(context.Background(), account.BethClient(), contract)
+					newLength, err := size(context.Background(), account.Client(), contract)
 					Expect(err).ShouldNot(HaveOccurred())
 					fmt.Printf("\n\x1b[37;1mThe new size of array on %s is %v\n\x1b[0m", network, newLength.String())
 
