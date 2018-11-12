@@ -60,8 +60,7 @@ var _ = Describe("contracts", func() {
 			return nil, errors.New("invalid infura network")
 		}
 		// Get contract
-		conn := account.EthClient()
-		return test.NewBethtest(contractAddr, bind.ContractBackend(conn.EthClient()))
+		return test.NewBethtest(contractAddr, bind.ContractBackend(account.EthClient()))
 	}
 
 	elementExists := func(ctx context.Context, conn beth.Client, contract *test.Bethtest, val *big.Int) (exists bool) {
@@ -94,7 +93,7 @@ var _ = Describe("contracts", func() {
 
 		// Post-condition: Confirm that the integer has the new value
 		postCondition := func() bool {
-			newVal, err := read(ctx, account.EthClient(), contract)
+			newVal, err := read(ctx, account.BethClient(), contract)
 			if err != nil {
 				return false
 			}
@@ -117,7 +116,7 @@ var _ = Describe("contracts", func() {
 
 		// Post-condition: confirm that previous value has been incremented
 		postCondition := func() bool {
-			newVal, err := read(ctx, account.EthClient(), contract)
+			newVal, err := read(ctx, account.BethClient(), contract)
 			if err != nil {
 				return false
 			}
@@ -141,7 +140,7 @@ var _ = Describe("contracts", func() {
 
 			// Pre-condition: Does element already exist in the list?
 			preCondition := func() bool {
-				exists := elementExists(ctx, account.EthClient(), contract, val)
+				exists := elementExists(ctx, account.BethClient(), contract, val)
 				if exists {
 					fmt.Printf("\n[warning] Element %v exists in list!\n", val.String())
 				}
@@ -156,7 +155,7 @@ var _ = Describe("contracts", func() {
 
 			// Post-condition: Has element been added to the list?
 			postCondition := func() bool {
-				return elementExists(ctx, account.EthClient(), contract, val)
+				return elementExists(ctx, account.BethClient(), contract, val)
 			}
 
 			// Execute transaction
@@ -191,14 +190,14 @@ var _ = Describe("contracts", func() {
 			preCondition := func() bool {
 
 				// Read size of list
-				size, err := size(ctx, account.EthClient(), contract)
+				size, err := size(ctx, account.BethClient(), contract)
 				if err != nil || size.Cmp(big.NewInt(0)) <= 0 {
 					fmt.Println("\n[warning] list is empty!")
 					return false
 				}
 
 				// Check if element is present
-				exists := elementExists(ctx, account.EthClient(), contract, val)
+				exists := elementExists(ctx, account.BethClient(), contract, val)
 				if !exists {
 					fmt.Printf("\n[warning] %v is not present in list!\n", val.String())
 				}
@@ -213,7 +212,7 @@ var _ = Describe("contracts", func() {
 
 			// Post-condition: Has element been deleted successfully?
 			postCondition := func() bool {
-				return !elementExists(ctx, account.EthClient(), contract, val)
+				return !elementExists(ctx, account.BethClient(), contract, val)
 			}
 
 			// Execute delete tx
@@ -315,15 +314,14 @@ var _ = Describe("contracts", func() {
 
 						fmt.Printf("\n\x1b[37;1mSetting integer %v in the contract on %s\n\x1b[0m", val.String(), network)
 
-						ethClient := account.EthClient()
-						nonceBefore, err := ethClient.EthClient().NonceAt(context.Background(), account.Address(), nil)
+						nonceBefore, err := account.EthClient().NonceAt(context.Background(), account.Address(), nil)
 						Expect(err).ShouldNot(HaveOccurred())
 
 						// Set value in the contract
 						err = setInt(account, contract, val, waitBlocks)
 						Expect(err).ShouldNot(HaveOccurred())
 
-						nonceMid, err := ethClient.EthClient().NonceAt(context.Background(), account.Address(), nil)
+						nonceMid, err := account.EthClient().NonceAt(context.Background(), account.Address(), nil)
 						Expect(err).ShouldNot(HaveOccurred())
 						Expect(nonceMid - nonceBefore).Should(Equal(uint64(1)))
 
@@ -333,7 +331,7 @@ var _ = Describe("contracts", func() {
 						err = increment(account, contract, val, waitBlocks)
 						Expect(err).ShouldNot(HaveOccurred())
 
-						nonceAfter, err := ethClient.EthClient().NonceAt(context.Background(), account.Address(), nil)
+						nonceAfter, err := account.EthClient().NonceAt(context.Background(), account.Address(), nil)
 						Expect(err).ShouldNot(HaveOccurred())
 						Expect(nonceAfter - nonceMid).Should(Equal(uint64(1)))
 					}
@@ -350,7 +348,7 @@ var _ = Describe("contracts", func() {
 					Expect(err).ShouldNot(HaveOccurred())
 
 					// Retrieve original length of array
-					originalLength, err := size(context.Background(), account.EthClient(), contract)
+					originalLength, err := size(context.Background(), account.BethClient(), contract)
 					Expect(err).ShouldNot(HaveOccurred())
 					fmt.Printf("\n\x1b[37;1mThe size of array on %s is %v\n\x1b[0m", network, originalLength.String())
 
@@ -379,7 +377,7 @@ var _ = Describe("contracts", func() {
 					Expect(err).Should(Equal(beth.ErrPreConditionCheckFailed))
 
 					// Retrieve length of array after deleting the newly added elements
-					newLength, err := size(context.Background(), account.EthClient(), contract)
+					newLength, err := size(context.Background(), account.BethClient(), contract)
 					Expect(err).ShouldNot(HaveOccurred())
 					fmt.Printf("\n\x1b[37;1mThe new size of array on %s is %v\n\x1b[0m", network, newLength.String())
 

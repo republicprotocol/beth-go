@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 // ErrPreConditionCheckFailed indicates that the pre-condition for executing
@@ -60,7 +61,13 @@ const (
 // to the Ethereum blockchain. An Account is defined by its public address and
 // respective private key.
 type Account interface {
-	EthClient() Client
+
+	// BethClient returns the client that the account is connected to. Using 
+	// this client, read-only operations can be executed on Ethereum.
+	BethClient() Client
+
+	// EthClient returns the actual Ethereum client.
+	EthClient() *ethclient.Client
 
 	// Address returns the ethereum address of the account holder.
 	Address() common.Address
@@ -175,9 +182,12 @@ func (account *account) ReadAddress(key string) (common.Address, error) {
 	return common.Address{}, ErrAddressNotFound
 }
 
-// EthClient returns the ethereum client that the account is connected to.
-func (account *account) EthClient() Client {
+func (account *account) BethClient() Client {
 	return account.client
+}
+
+func (account *account) EthClient() *ethclient.Client {
+	return account.client.EthClient()
 }
 
 // Transact attempts to execute a transaction on the Ethereum blockchain with
