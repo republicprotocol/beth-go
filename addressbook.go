@@ -47,7 +47,7 @@ var KovanAddresses = []Address{
 	},
 	Address{
 		Name:    "WBTC",
-		Address: "0xA1D3EEcb76285B4435550E4D963B8042A8b11111",
+		Address: "0xA1D3EEcb76285B4435550E4D963B8042A8bffbF0",
 	},
 	Address{
 		Name:    "SwapperdETH",
