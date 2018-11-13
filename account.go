@@ -72,7 +72,7 @@ type Account interface {
 	Address() common.Address
 
 	// Store address in address book.
-	WriteAddress(key string, address common.Address) error
+	WriteAddress(key string, address common.Address)
 
 	// ReadAddress returns address mapped to the given key in the address book.
 	ReadAddress(key string) (common.Address, error)
@@ -166,14 +166,13 @@ func (account *account) Address() common.Address {
 	return account.transactOpts.From
 }
 
-func (account *account) WriteAddress(key string, address common.Address) error {
-	if _, ok := account.addressBook[key]; ok {
-		return ErrDuplicateAddress
-	}
+// WriteAddress to the address book, overwrite if already exists
+func (account *account) WriteAddress(key string, address common.Address) {
 	account.addressBook[key] = address
-	return nil
 }
 
+// ReadAddress from the address book, return an error if the address does not
+// exist
 func (account *account) ReadAddress(key string) (common.Address, error) {
 	if address, ok := account.addressBook[key]; ok {
 		return address, nil

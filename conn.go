@@ -24,6 +24,7 @@ var ErrCannotConvertToBigInt = errors.New("cannot convert hex string to int: inv
 // Client will have a connection to an ethereum client (specified by the url)
 type Client struct {
 	ethClient *ethclient.Client
+	addrBook  AddressBook
 	url       string
 }
 
@@ -35,10 +36,30 @@ func Connect(url string) (Client, error) {
 		return Client{}, err
 	}
 
+	netID, err := ethClient.NetworkID(context.Background())
+	if err != nil {
+		return Client{}, err
+	}
+
 	return Client{
 		ethClient: ethClient,
+		addrBook:  DefaultAddressBook(netID.Int64()),
 		url:       url,
 	}, nil
+}
+
+// WriteAddress to the address book, overwrite if already exists
+func (client *Client) WriteAddress(key string, address common.Address) {
+	client.addrBook[key] = address
+}
+
+// ReadAddress from the address book, return an error if the address does not
+// exist
+func (client *Client) ReadAddress(key string) (common.Address, error) {
+	if address, ok := client.addrBook[key]; ok {
+		return address, nil
+	}
+	return common.Address{}, ErrAddressNotFound
 }
 
 // WaitMined waits for tx to be mined on the blockchain.
