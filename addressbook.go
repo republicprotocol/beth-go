@@ -25,6 +25,10 @@ var MainnetAddresses = []Address{
 		Address: "0x21C482f153D0317fe85C60bE1F7fa079019fcEbD",
 	},
 	Address{
+		Name:    "WBTC",
+		Address: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+	},
+	Address{
 		Name:    "ZRX",
 		Address: "0xE41d2489571d322189246DaFA5ebDe1F4699F498",
 	},
