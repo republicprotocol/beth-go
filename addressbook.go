@@ -18,11 +18,11 @@ var MainnetAddressBook = AddressBook{
 var RopstenAddressBook = AddressBook{}
 
 var KovanAddressBook = AddressBook{
-	"RenExOrderbook":  common.HexToAddress("0xA1D3EEcb76285B4435550E4D963B8042A8b11111"),
-	"RenExSettlement": common.HexToAddress("0xA1D3EEcb76285B4435550E4D963B8042A8b11111"),
+	"RenExOrderbook":  common.HexToAddress("0x0000000000000000000000000000000000000000"),
+	"RenExSettlement": common.HexToAddress("0x0000000000000000000000000000000000000000"),
 	"WBTC":            common.HexToAddress("0xA1D3EEcb76285B4435550E4D963B8042A8bffbF0"),
-	"SwapperdETH":     common.HexToAddress("0x3fc25F4732d41a26d8D93EA57cD0d48A1562916e"),
-	"SwapperdWBTC":    common.HexToAddress("0x5ac556b7ffAcABDe491B0dFAc5fEB4b99fd65392"),
+	"SwapperdETH":     common.HexToAddress("0x4Dc61096fA29434E2670F0007D6C9c9012578aEb"),
+	"SwapperdWBTC":    common.HexToAddress("0xEdaafe9685D565DEC9891b0a5465020a648c0a49"),
 	"DGX":             common.HexToAddress("0x932F4580B261e9781A6c3c102133C8fDd4503DFc"),
 	"TUSD":            common.HexToAddress("0x525389752ffe6487d33EF53FBcD4E5D3AD7937a0"),
 	"REN":             common.HexToAddress("0x2CD647668494c1B15743AB283A0f980d90a87394"),
