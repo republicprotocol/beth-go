@@ -21,7 +21,7 @@ var KovanAddressBook = AddressBook{
 	"RenExOrderbook":  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 	"RenExSettlement": common.HexToAddress("0x0000000000000000000000000000000000000000"),
 	"WBTC":            common.HexToAddress("0xA1D3EEcb76285B4435550E4D963B8042A8bffbF0"),
-	"SwapperdETH":     common.HexToAddress("0x4Dc61096fA29434E2670F0007D6C9c9012578aEb"),
+	"SwapperdETH":     common.HexToAddress("0x898F01Da355922c2EA5Def5f492E7F4db52181d0"),
 	"SwapperdWBTC":    common.HexToAddress("0xEdaafe9685D565DEC9891b0a5465020a648c0a49"),
 	"DGX":             common.HexToAddress("0x932F4580B261e9781A6c3c102133C8fDd4503DFc"),
 	"TUSD":            common.HexToAddress("0x525389752ffe6487d33EF53FBcD4E5D3AD7937a0"),
