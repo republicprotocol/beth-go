@@ -403,7 +403,7 @@ var _ = Describe("contracts", func() {
 						Expect(err).ShouldNot(HaveOccurred())
 						// Transfer 1 Eth to the other account's address
 						value, _ := big.NewFloat(1 * math.Pow10(18)).Int(nil)
-						if err := account.Transfer(ctx, toAddrs[i], value, waitBlocks); err != nil {
+						if _, err := account.Transfer(ctx, toAddrs[i], value, waitBlocks); err != nil {
 							Expect(err).ShouldNot(HaveOccurred())
 						}
 					})

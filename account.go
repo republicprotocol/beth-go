@@ -78,7 +78,7 @@ type Account interface {
 	ReadAddress(key string) (common.Address, error)
 
 	// Transfer sends the specified value of Eth to the given address.
-	Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) error
+	Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) (string, error)
 
 	// Transact performs a write operation on the Ethereum blockchain. It will
 	// first conduct a preConditionCheck and if the check passes, it will
@@ -318,7 +318,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 }
 
 // Transfer transfers eth from the account to an ethereum address.
-func (account *account) Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) error {
+func (account *account) Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) (string, error) {
 
 	// Pre-condition check: Check if the account has enough balance
 	preConditionCheck := func() bool {
@@ -326,6 +326,7 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 		return err == nil && accountBalance.Cmp(value) >= 0
 	}
 
+	var txHash string
 	// Transaction: Transfer eth to address
 	f := func(transactOpts *bind.TransactOpts) (*types.Transaction, error) {
 		bound := bind.NewBoundContract(to, abi.ABI{}, nil, account.client.EthClient(), nil)
@@ -344,10 +345,15 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 			transactor.GasPrice = big.NewInt(0).Set(transactOpts.GasPrice)
 		}
 
-		return bound.Transfer(transactor)
+		tx, err := bound.Transfer(transactor)
+		if err != nil {
+			return tx, err
+		}
+		txHash = tx.Hash().String()
+		return tx, nil
 	}
 
-	return account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
+	return txHash, account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
 }
 
 // Sign the given message with the account's private key.
