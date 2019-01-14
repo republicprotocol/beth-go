@@ -13,6 +13,9 @@ var MainnetAddressBook = AddressBook{
 	"WBTC": common.HexToAddress("0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"),
 	"ZRX":  common.HexToAddress("0xE41d2489571d322189246DaFA5ebDe1F4699F498"),
 	"OMG":  common.HexToAddress("0xd26114cd6EE289AccF82350c8d8487fedB8A0C07"),
+	"USDC": common.HexToAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),
+	"GUSD": common.HexToAddress("0x056fd409e1d7a124bd7017459dfea2f387b6d5cd"),
+	"DAI":  common.HexToAddress("0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359"),
 }
 
 var RopstenAddressBook = AddressBook{}
@@ -34,6 +37,9 @@ var KovanAddressBook = AddressBook{
 	"REN":              common.HexToAddress("0x2CD647668494c1B15743AB283A0f980d90a87394"),
 	"ZRX":              common.HexToAddress("0x6EB628dCeFA95802899aD3A9EE0C7650Ac63d543"),
 	"OMG":              common.HexToAddress("0x66497ba75dD127b46316d806c077B06395918064"),
+	"USDC":             common.HexToAddress("0x3f0a4aed397c66d7b7dde1d170321f87656b14cc"),
+	"GUSD":             common.HexToAddress("0xA9CF366E9fb4F7959452d7a17A6F88ee2A20e9DA"),
+	"DAI":              common.HexToAddress("0xc4375b7de8af5a38a93548eb8453a498222c4ff2"),
 }
 
 func DefaultAddressBook(network int64) AddressBook {
