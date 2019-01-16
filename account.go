@@ -154,7 +154,6 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 		addressBook: DefaultAddressBook(netID.Int64()),
 	}
 	if err := account.updateGasPrice(Fast); err != nil {
-		log.Println(fmt.Sprintf("cannot update gas price = %v", err))
 		account.transactOpts.GasPrice = big.NewInt(11)
 	}
 
@@ -217,10 +216,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			account.mu.Lock()
 			defer account.mu.Unlock()
 
-			if err := account.updateGasPrice(Fast); err != nil {
-				log.Println(fmt.Sprintf("cannot update gas price = %v", err))
-			}
-
+			account.updateGasPrice(Fast)
 			// This will attempt to execute 'f' until no nonce error is
 			// returned or if ctx times out
 			innerCtx, innerCancel := context.WithTimeout(ctx, time.Minute)
