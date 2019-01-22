@@ -33,7 +33,8 @@ var KovanAddressBook = AddressBook{
 	"GUSDSwapContract": common.HexToAddress("0xb9efa9dc4306ae3a5abe652db65361d13765c0d6"),
 	"DAISwapContract":  common.HexToAddress("0x233fdd9253fda1f616bfd382633ca74e4824b703"),
 	"TUSDSwapContract": common.HexToAddress("0x61ba8c2d07d701056df3e6038d9abc25f6b86da6"),
-	"DGXSwapContract":  common.HexToAddress("0x84715415755d44e90f78639e27379017e8a038ef"),
+	"DGXSwapContract":  common.HexToAddress("0x9f6aee6c3d03dc3274c5ba511e4637f156ea1ed6"),
+	"PAXSwapContract":  common.HexToAddress("0xd819014e74df5b718cd7826f81139bdec106a9cb"),
 	"WBTC":             common.HexToAddress("0xA1D3EEcb76285B4435550E4D963B8042A8bffbF0"),
 	"REN":              common.HexToAddress("0x2CD647668494c1B15743AB283A0f980d90a87394"),
 	"ZRX":              common.HexToAddress("0x6EB628dCeFA95802899aD3A9EE0C7650Ac63d543"),
@@ -42,7 +43,8 @@ var KovanAddressBook = AddressBook{
 	"GUSD":             common.HexToAddress("0xA9CF366E9fb4F7959452d7a17A6F88ee2A20e9DA"),
 	"DAI":              common.HexToAddress("0xc4375b7de8af5a38a93548eb8453a498222c4ff2"),
 	"TUSD":             common.HexToAddress("0x525389752ffe6487d33EF53FBcD4E5D3AD7937a0"),
-	"DGX":              common.HexToAddress("0x932F4580B261e9781A6c3c102133C8fDd4503DFc"),
+	"DGX":              common.HexToAddress("0x7d6D31326b12B6CBd7f054231D47CbcD16082b71"),
+	"PAX":              common.HexToAddress("0x3584087444dabf2e0d29284766142ac5c3a9a2b7"),
 }
 
 func DefaultAddressBook(network int64) AddressBook {
