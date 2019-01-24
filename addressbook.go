@@ -19,6 +19,11 @@ var MainnetAddressBook = AddressBook{
 	"PAX":              common.HexToAddress("0x8e870d67f660d95d5be530380d0ec0bd388289e1"),
 	"ETHSwapContract":  common.HexToAddress("0x4Bc1d23a8c00Ac87c57B6a32d5fb82aA5346950d"),
 	"WBTCSwapContract": common.HexToAddress("0x15c10c51d86a51021d0683b8359fb20a8ba40b45"),
+	"RENSwapContract":  common.HexToAddress("0xd633db90e6b017484ac08b711ed9f641c038141e"),
+	"TUSDSwapContract": common.HexToAddress("0x0850ce7608313a957a52ef1536cdc0d87189d0e3"),
+	"DGXSwapContract":  common.HexToAddress("0x42021bb8b52eae41a4bfed6af824f0a0d752d312"),
+	"ZRXSwapContract":  common.HexToAddress("0x8a92e4f744460cb42e346636c3db48a940327107"),
+	"OMGSwapContract":  common.HexToAddress("0x0f980ffa044bc28a0352a2282136bb61e2460ee4"),
 }
 
 var RopstenAddressBook = AddressBook{}
@@ -30,13 +35,13 @@ var KovanAddressBook = AddressBook{
 	"ETHSwapContract":  common.HexToAddress("0x94ab22cffb9cc1ee4097ff17ef9c02fbb26fdfa4"),
 	"WBTCSwapContract": common.HexToAddress("0xad29a79ae4863ea605b14a6be730e29bcd5f2294"),
 	"RENSwapContract":  common.HexToAddress("0x7708a58e7c1fdc6d9e092e4270f15f30ffffbbaf"),
-	"ZRXSwapContract":  common.HexToAddress("0x3f9032cd9bb2233694e7b51ada014345216c6a90"),
+	"TUSDSwapContract": common.HexToAddress("0x61ba8c2d07d701056df3e6038d9abc25f6b86da6"),
 	"OMGSwapContract":  common.HexToAddress("0x07ca0635574a191a7e63ce1d67c295cafbcf1e87"),
+	"ZRXSwapContract":  common.HexToAddress("0x3f9032cd9bb2233694e7b51ada014345216c6a90"),
+	"DGXSwapContract":  common.HexToAddress("0x9f6aee6c3d03dc3274c5ba511e4637f156ea1ed6"),
 	"USDCSwapContract": common.HexToAddress("0x4cc61223b5308ff6b48b43d0a2c425b5f11f9bca"),
 	"GUSDSwapContract": common.HexToAddress("0xb9efa9dc4306ae3a5abe652db65361d13765c0d6"),
 	"DAISwapContract":  common.HexToAddress("0x233fdd9253fda1f616bfd382633ca74e4824b703"),
-	"TUSDSwapContract": common.HexToAddress("0x61ba8c2d07d701056df3e6038d9abc25f6b86da6"),
-	"DGXSwapContract":  common.HexToAddress("0x9f6aee6c3d03dc3274c5ba511e4637f156ea1ed6"),
 	"PAXSwapContract":  common.HexToAddress("0xd819014e74df5b718cd7826f81139bdec106a9cb"),
 	"WBTC":             common.HexToAddress("0xA1D3EEcb76285B4435550E4D963B8042A8bffbF0"),
 	"REN":              common.HexToAddress("0x2CD647668494c1B15743AB283A0f980d90a87394"),
