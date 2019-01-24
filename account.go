@@ -153,9 +153,6 @@ func NewAccount(url string, privateKey *ecdsa.PrivateKey) (Account, error) {
 
 		addressBook: DefaultAddressBook(netID.Int64()),
 	}
-	if err := account.updateGasPrice(Fast); err != nil {
-		account.transactOpts.GasPrice = big.NewInt(11)
-	}
 
 	return account, nil
 }
