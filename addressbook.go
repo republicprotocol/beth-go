@@ -7,15 +7,18 @@ import (
 type AddressBook map[string]common.Address
 
 var MainnetAddressBook = AddressBook{
-	"DGX":  common.HexToAddress("0x4f3AfEC4E5a3F2A6a1A411DEF7D7dFe50eE057bF"),
-	"TUSD": common.HexToAddress("0x8dd5fbCe2F6a956C3022bA3663759011Dd51e73E"),
-	"REN":  common.HexToAddress("0x21C482f153D0317fe85C60bE1F7fa079019fcEbD"),
-	"WBTC": common.HexToAddress("0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"),
-	"ZRX":  common.HexToAddress("0xE41d2489571d322189246DaFA5ebDe1F4699F498"),
-	"OMG":  common.HexToAddress("0xd26114cd6EE289AccF82350c8d8487fedB8A0C07"),
-	"USDC": common.HexToAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),
-	"GUSD": common.HexToAddress("0x056fd409e1d7a124bd7017459dfea2f387b6d5cd"),
-	"DAI":  common.HexToAddress("0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359"),
+	"DGX":              common.HexToAddress("0x4f3AfEC4E5a3F2A6a1A411DEF7D7dFe50eE057bF"),
+	"TUSD":             common.HexToAddress("0x8dd5fbCe2F6a956C3022bA3663759011Dd51e73E"),
+	"REN":              common.HexToAddress("0x21C482f153D0317fe85C60bE1F7fa079019fcEbD"),
+	"WBTC":             common.HexToAddress("0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"),
+	"ZRX":              common.HexToAddress("0xE41d2489571d322189246DaFA5ebDe1F4699F498"),
+	"OMG":              common.HexToAddress("0xd26114cd6EE289AccF82350c8d8487fedB8A0C07"),
+	"USDC":             common.HexToAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),
+	"GUSD":             common.HexToAddress("0x056fd409e1d7a124bd7017459dfea2f387b6d5cd"),
+	"DAI":              common.HexToAddress("0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359"),
+	"PAX":              common.HexToAddress("0x8e870d67f660d95d5be530380d0ec0bd388289e1"),
+	"ETHSwapContract":  common.HexToAddress("0x4Bc1d23a8c00Ac87c57B6a32d5fb82aA5346950d"),
+	"WBTCSwapContract": common.HexToAddress("0x15c10c51d86a51021d0683b8359fb20a8ba40b45"),
 }
 
 var RopstenAddressBook = AddressBook{}
