@@ -7,6 +7,7 @@ import (
 type AddressBook map[string]common.Address
 
 var MainnetAddressBook = AddressBook{
+	"DarknodeRegistry": common.HexToAddress("0x34bd421C7948Bc16f826Fd99f9B785929b121633"),
 	"DGX":              common.HexToAddress("0x4f3AfEC4E5a3F2A6a1A411DEF7D7dFe50eE057bF"),
 	"TUSD":             common.HexToAddress("0x8dd5fbCe2F6a956C3022bA3663759011Dd51e73E"),
 	"REN":              common.HexToAddress("0x21C482f153D0317fe85C60bE1F7fa079019fcEbD"),
