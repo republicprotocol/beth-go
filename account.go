@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"math/big"
 	"net/http"
@@ -70,6 +69,10 @@ type Account interface {
 
 	// Address returns the ethereum address of the account holder.
 	Address() common.Address
+
+	// BalanceAt returns the wei balance of the account. The block number can be
+	// nil, in which case the balance is taken from the latest known block.
+	BalanceAt(ctx context.Context, blockNumber *big.Int) (*big.Int, error)
 
 	// Store address in address book.
 	WriteAddress(key string, address common.Address)
@@ -162,6 +165,12 @@ func (account *account) Address() common.Address {
 	return account.transactOpts.From
 }
 
+// BalanceAt returns the wei balance of the account. The block number can be nil,
+// in which case the balance is taken from the latest known block.
+func (account *account) BalanceAt(ctx context.Context, blockNumber *big.Int) (*big.Int, error) {
+	return account.client.ethClient.BalanceAt(ctx, account.Address(), nil)
+}
+
 // WriteAddress to the address book, overwrite if already exists
 func (account *account) WriteAddress(key string, address common.Address) {
 	account.addressBook[key] = address
@@ -237,7 +246,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			if strings.Compare(err.Error(), core.ErrReplaceUnderpriced.Error()) == 0 {
 				return ErrNonceIsOutOfSync
 			}
-			log.Println(err)
+			fmt.Println(err)
 		}
 
 		for i := 0; i < 180; i++ {
