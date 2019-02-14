@@ -319,7 +319,8 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 	return nil
 }
 
-// Transfer transfers eth from the account to an ethereum address.
+// Transfer transfers eth from the account to an ethereum address. If the value
+// is nil then it transfers all the balance to the `to` address.
 func (account *account) Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) (string, error) {
 
 	// Pre-condition check: Check if the account has enough balance
@@ -332,6 +333,14 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 	// Transaction: Transfer eth to address
 	f := func(transactOpts *bind.TransactOpts) (*types.Transaction, error) {
 		bound := bind.NewBoundContract(to, abi.ABI{}, nil, account.client.EthClient(), nil)
+
+		if value == nil {
+			balance, err := account.BalanceAt(ctx, nil)
+			if err != nil {
+				return nil, err
+			}
+			value = new(big.Int).Sub(balance, new(big.Int).Mul(big.NewInt(21000), transactOpts.GasPrice))
+		}
 
 		transactor := &bind.TransactOpts{
 			From:     transactOpts.From,

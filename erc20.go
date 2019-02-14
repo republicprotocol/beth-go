@@ -64,6 +64,14 @@ func (erc20 *erc20) Allowance(ctx context.Context, owner, spender common.Address
 }
 
 func (erc20 *erc20) Transfer(ctx context.Context, to common.Address, amount *big.Int) error {
+	if amount == nil {
+		balance, err := erc20.BalanceOf(ctx, erc20.account.Address())
+		if err != nil {
+			return err
+		}
+		amount = balance
+	}
+
 	return erc20.account.Transact(
 		ctx,
 		nil,
