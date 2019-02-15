@@ -105,6 +105,8 @@ type Account interface {
 	// FormatTransactionView returns the formatted string with the URL at which
 	// the transaction can be viewed.
 	FormatTransactionView(msg, txHash string) (string, error)
+
+	NewERC20(addressOrAlias string) (ERC20, error)
 }
 
 type account struct {
