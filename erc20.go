@@ -17,9 +17,9 @@ type erc20 struct {
 type ERC20 interface {
 	BalanceOf(ctx context.Context, who common.Address) (*big.Int, error)
 	Allowance(ctx context.Context, owner, spender common.Address) (*big.Int, error)
-	Transfer(ctx context.Context, to common.Address, amount *big.Int) error
-	Approve(ctx context.Context, spender common.Address, amount *big.Int) error
-	TransferFrom(ctx context.Context, from, to common.Address, amount *big.Int) error
+	Transfer(ctx context.Context, to common.Address, amount *big.Int) (string, error)
+	Approve(ctx context.Context, spender common.Address, amount *big.Int) (string, error)
+	TransferFrom(ctx context.Context, from, to common.Address, amount *big.Int) (string, error)
 }
 
 func (account *account) NewERC20(addressOrAlias string) (ERC20, error) {
@@ -63,44 +63,61 @@ func (erc20 *erc20) Allowance(ctx context.Context, owner, spender common.Address
 	})
 }
 
-func (erc20 *erc20) Transfer(ctx context.Context, to common.Address, amount *big.Int) error {
+func (erc20 *erc20) Transfer(ctx context.Context, to common.Address, amount *big.Int) (string, error) {
 	if amount == nil {
 		balance, err := erc20.BalanceOf(ctx, erc20.account.Address())
 		if err != nil {
-			return err
+			return "", err
 		}
 		amount = balance
 	}
-
-	return erc20.account.Transact(
+	var txHash string
+	return txHash, erc20.account.Transact(
 		ctx,
 		nil,
 		func(tops *bind.TransactOpts) (*types.Transaction, error) {
-			return erc20.cerc20.Transfer(tops, to, amount)
+			tx, err := erc20.cerc20.Transfer(tops, to, amount)
+			if err != nil {
+				return tx, err
+			}
+			txHash = tx.Hash().String()
+			return tx, nil
 		},
 		nil,
 		1,
 	)
 }
 
-func (erc20 *erc20) Approve(ctx context.Context, spender common.Address, amount *big.Int) error {
-	return erc20.account.Transact(
+func (erc20 *erc20) Approve(ctx context.Context, spender common.Address, amount *big.Int) (string, error) {
+	var txHash string
+	return txHash, erc20.account.Transact(
 		ctx,
 		nil,
 		func(tops *bind.TransactOpts) (*types.Transaction, error) {
-			return erc20.cerc20.Approve(tops, spender, amount)
+			tx, err := erc20.cerc20.Approve(tops, spender, amount)
+			if err != nil {
+				return tx, err
+			}
+			txHash = tx.Hash().String()
+			return tx, nil
 		},
 		nil,
 		1,
 	)
 }
 
-func (erc20 *erc20) TransferFrom(ctx context.Context, from, to common.Address, amount *big.Int) error {
-	return erc20.account.Transact(
+func (erc20 *erc20) TransferFrom(ctx context.Context, from, to common.Address, amount *big.Int) (string, error) {
+	var txHash string
+	return txHash, erc20.account.Transact(
 		ctx,
 		nil,
 		func(tops *bind.TransactOpts) (*types.Transaction, error) {
-			return erc20.cerc20.TransferFrom(tops, from, to, amount)
+			tx, err := erc20.cerc20.TransferFrom(tops, from, to, amount)
+			if err != nil {
+				return tx, err
+			}
+			txHash = tx.Hash().String()
+			return tx, nil
 		},
 		nil,
 		1,
