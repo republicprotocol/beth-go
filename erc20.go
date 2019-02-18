@@ -2,6 +2,7 @@ package beth
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -17,9 +18,9 @@ type erc20 struct {
 type ERC20 interface {
 	BalanceOf(ctx context.Context, who common.Address) (*big.Int, error)
 	Allowance(ctx context.Context, owner, spender common.Address) (*big.Int, error)
-	Transfer(ctx context.Context, to common.Address, amount *big.Int) (string, error)
-	Approve(ctx context.Context, spender common.Address, amount *big.Int) (string, error)
-	TransferFrom(ctx context.Context, from, to common.Address, amount *big.Int) (string, error)
+	Transfer(ctx context.Context, to common.Address, amount, gasPrice *big.Int, sendAll bool) (*types.Transaction, error)
+	Approve(ctx context.Context, spender common.Address, amount, gasPrice *big.Int) (*types.Transaction, error)
+	TransferFrom(ctx context.Context, from, to common.Address, amount, gasPrice *big.Int) (*types.Transaction, error)
 }
 
 func (account *account) NewERC20(addressOrAlias string) (ERC20, error) {
@@ -63,24 +64,28 @@ func (erc20 *erc20) Allowance(ctx context.Context, owner, spender common.Address
 	})
 }
 
-func (erc20 *erc20) Transfer(ctx context.Context, to common.Address, amount *big.Int) (string, error) {
+func (erc20 *erc20) Transfer(ctx context.Context, to common.Address, amount, gasPrice *big.Int, sendAll bool) (*types.Transaction, error) {
 	if amount == nil {
+		return nil, fmt.Errorf("value cannot be nil")
+	}
+	if sendAll {
 		balance, err := erc20.BalanceOf(ctx, erc20.account.Address())
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		amount = balance
 	}
-	var txHash string
-	return txHash, erc20.account.Transact(
+	return erc20.account.Transact(
 		ctx,
 		nil,
 		func(tops *bind.TransactOpts) (*types.Transaction, error) {
+			if gasPrice != nil {
+				tops.GasPrice = gasPrice
+			}
 			tx, err := erc20.cerc20.Transfer(tops, to, amount)
 			if err != nil {
 				return tx, err
 			}
-			txHash = tx.Hash().String()
 			return tx, nil
 		},
 		nil,
@@ -88,17 +93,18 @@ func (erc20 *erc20) Transfer(ctx context.Context, to common.Address, amount *big
 	)
 }
 
-func (erc20 *erc20) Approve(ctx context.Context, spender common.Address, amount *big.Int) (string, error) {
-	var txHash string
-	return txHash, erc20.account.Transact(
+func (erc20 *erc20) Approve(ctx context.Context, spender common.Address, amount, gasPrice *big.Int) (*types.Transaction, error) {
+	return erc20.account.Transact(
 		ctx,
 		nil,
 		func(tops *bind.TransactOpts) (*types.Transaction, error) {
+			if gasPrice != nil {
+				tops.GasPrice = gasPrice
+			}
 			tx, err := erc20.cerc20.Approve(tops, spender, amount)
 			if err != nil {
 				return tx, err
 			}
-			txHash = tx.Hash().String()
 			return tx, nil
 		},
 		nil,
@@ -106,17 +112,18 @@ func (erc20 *erc20) Approve(ctx context.Context, spender common.Address, amount 
 	)
 }
 
-func (erc20 *erc20) TransferFrom(ctx context.Context, from, to common.Address, amount *big.Int) (string, error) {
-	var txHash string
-	return txHash, erc20.account.Transact(
+func (erc20 *erc20) TransferFrom(ctx context.Context, from, to common.Address, amount, gasPrice *big.Int) (*types.Transaction, error) {
+	return erc20.account.Transact(
 		ctx,
 		nil,
 		func(tops *bind.TransactOpts) (*types.Transaction, error) {
+			if gasPrice != nil {
+				tops.GasPrice = gasPrice
+			}
 			tx, err := erc20.cerc20.TransferFrom(tops, from, to, amount)
 			if err != nil {
 				return tx, err
 			}
-			txHash = tx.Hash().String()
 			return tx, nil
 		},
 		nil,
