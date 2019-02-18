@@ -81,7 +81,7 @@ type Account interface {
 	ReadAddress(key string) (common.Address, error)
 
 	// Transfer sends the specified value of Eth to the given address.
-	Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) (string, error)
+	Transfer(ctx context.Context, to common.Address, value, gasPrice *big.Int, confirmBlocks int64, sendAll bool) (*types.Transaction, error)
 
 	// Transact performs a write operation on the Ethereum blockchain. It will
 	// first conduct a preConditionCheck and if the check passes, it will
@@ -89,7 +89,7 @@ type Account interface {
 	// until the transaction passes and the postConditionCheck returns true.
 	// Transact will immediately stop retrying if an ErrReplaceUnderpriced is
 	// returned from ethereum.
-	Transact(ctx context.Context, preConditionCheck func() bool, f func(*bind.TransactOpts) (*types.Transaction, error), postConditionCheck func() bool, confirmBlocks int64) error
+	Transact(ctx context.Context, preConditionCheck func() bool, f func(*bind.TransactOpts) (*types.Transaction, error), postConditionCheck func() bool, confirmBlocks int64) (*types.Transaction, error)
 
 	// Sign the given message with the account's private key.
 	Sign(msgHash []byte) ([]byte, error)
@@ -199,15 +199,16 @@ func (account *account) EthClient() *ethclient.Client {
 // the retry functionality. It stops retrying if tx is completed without any
 // error, or if given context times-out, or if ErrReplaceUnderpriced is
 // returned from Ethereum.
-func (account *account) Transact(ctx context.Context, preConditionCheck func() bool, f func(*bind.TransactOpts) (*types.Transaction, error), postConditionCheck func() bool, waitForBlocks int64) error {
+func (account *account) Transact(ctx context.Context, preConditionCheck func() bool, f func(*bind.TransactOpts) (*types.Transaction, error), postConditionCheck func() bool, waitForBlocks int64) (*types.Transaction, error) {
 
 	// Do not proceed any further if the (not nil) pre-condition check fails
 	if preConditionCheck != nil && !preConditionCheck() {
-		return ErrPreConditionCheckFailed
+		return nil, ErrPreConditionCheckFailed
 	}
 
 	sleepDurationMs := time.Duration(1000)
 	var txHash common.Hash
+	var transction *types.Transaction
 
 	// Keep retrying 'f' until the post-condition check passes or the context
 	// times out.
@@ -216,7 +217,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 		// If context is done, return error
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, ctx.Err()
 		default:
 		}
 
@@ -239,6 +240,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 				return err
 			}
 			txHash = tx.Hash()
+			transction = tx
 
 			// Transaction did not error, proceed to post-condition checks
 			return nil
@@ -246,7 +248,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			// There is another transaction with the same nonce and a higher or
 			// equal gas price as that of this transaction.
 			if strings.Compare(err.Error(), core.ErrReplaceUnderpriced.Error()) == 0 {
-				return ErrNonceIsOutOfSync
+				return nil, ErrNonceIsOutOfSync
 			}
 			fmt.Println(err)
 		}
@@ -254,7 +256,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 		for i := 0; i < 180; i++ {
 			select {
 			case <-ctx.Done():
-				return ErrPostConditionCheckFailed
+				return nil, ErrPostConditionCheckFailed
 			default:
 				if postConditionCheck == nil || postConditionCheck() {
 					postConPassed = true
@@ -274,7 +276,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 		// post-condition failed
 		select {
 		case <-ctx.Done():
-			return ErrPostConditionCheckFailed
+			return nil, ErrPostConditionCheckFailed
 		case <-time.After(sleepDurationMs * time.Millisecond):
 		}
 
@@ -294,14 +296,14 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 	// error will be returned.
 	blockNumber, err := account.client.TxBlockNumber(ctx, txHash.String())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Attempt to get current block number. If context times out, an error will
 	// be returned.
 	currentBlockNumber, err := account.client.CurrentBlockNumber(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Keep getting current block number until it is greater than
@@ -312,18 +314,21 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 		if err != nil {
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return nil, ctx.Err()
 			case <-time.After(time.Second):
 			}
 			continue
 		}
 	}
-	return nil
+	return transction, nil
 }
 
 // Transfer transfers eth from the account to an ethereum address. If the value
 // is nil then it transfers all the balance to the `to` address.
-func (account *account) Transfer(ctx context.Context, to common.Address, value *big.Int, confirmBlocks int64) (string, error) {
+func (account *account) Transfer(ctx context.Context, to common.Address, value, gasPrice *big.Int, confirmBlocks int64, sendAll bool) (*types.Transaction, error) {
+	if value == nil {
+		return nil, fmt.Errorf("value cannot be nil")
+	}
 
 	// Pre-condition check: Check if the account has enough balance
 	preConditionCheck := func() bool {
@@ -338,13 +343,16 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 	// Transaction: Transfer eth to address
 	f := func(transactOpts *bind.TransactOpts) (*types.Transaction, error) {
 		bound := bind.NewBoundContract(to, abi.ABI{}, nil, account.client.EthClient(), nil)
+		if gasPrice == nil {
+			gasPrice = transactOpts.GasPrice
+		}
 
-		if value == nil {
+		if sendAll {
 			balance, err := account.BalanceAt(ctx, nil)
 			if err != nil {
 				return nil, err
 			}
-			value = new(big.Int).Sub(balance, new(big.Int).Mul(big.NewInt(21000), transactOpts.GasPrice))
+			value = new(big.Int).Sub(balance, new(big.Int).Mul(big.NewInt(21000), gasPrice))
 		}
 
 		transactor := &bind.TransactOpts{
@@ -352,12 +360,13 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 			Signer:   transactOpts.Signer,
 			Value:    value,
 			GasLimit: 21000,
+			GasPrice: gasPrice,
 			Context:  ctx,
 		}
 		if transactOpts.Nonce != nil {
 			transactor.Nonce = big.NewInt(0).Set(transactOpts.Nonce)
 		}
-		if transactOpts.GasPrice != nil {
+		if transactor.GasPrice == nil {
 			transactor.GasPrice = big.NewInt(0).Set(transactOpts.GasPrice)
 		}
 
@@ -368,8 +377,7 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value *
 		txHash = tx.Hash().String()
 		return tx, nil
 	}
-
-	return txHash, account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
+	return account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
 }
 
 // Sign the given message with the account's private key.
