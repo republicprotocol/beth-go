@@ -339,7 +339,6 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value, 
 		return err == nil && accountBalance.Cmp(value) >= 0
 	}
 
-	var txHash string
 	// Transaction: Transfer eth to address
 	f := func(transactOpts *bind.TransactOpts) (*types.Transaction, error) {
 		bound := bind.NewBoundContract(to, abi.ABI{}, nil, account.client.EthClient(), nil)
@@ -374,7 +373,6 @@ func (account *account) Transfer(ctx context.Context, to common.Address, value, 
 		if err != nil {
 			return tx, err
 		}
-		txHash = tx.Hash().String()
 		return tx, nil
 	}
 	return account.Transact(ctx, preConditionCheck, f, nil, confirmBlocks)
