@@ -228,7 +228,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			account.updateGasPrice(Fast)
 			// This will attempt to execute 'f' until no nonce error is
 			// returned or if ctx times out
-			innerCtx, innerCancel := context.WithTimeout(ctx, time.Minute)
+			innerCtx, innerCancel := context.WithTimeout(ctx, 10 * time.Minute)
 			defer innerCancel()
 
 			tx, err := account.retryNonceTx(innerCtx, f)
