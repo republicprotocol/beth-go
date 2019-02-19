@@ -228,7 +228,7 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 			account.updateGasPrice(Fast)
 			// This will attempt to execute 'f' until no nonce error is
 			// returned or if ctx times out
-			innerCtx, innerCancel := context.WithTimeout(ctx, 10 * time.Minute)
+			innerCtx, innerCancel := context.WithTimeout(ctx, 10*time.Minute)
 			defer innerCancel()
 
 			tx, err := account.retryNonceTx(innerCtx, f)
@@ -326,17 +326,10 @@ func (account *account) Transact(ctx context.Context, preConditionCheck func() b
 // Transfer transfers eth from the account to an ethereum address. If the value
 // is nil then it transfers all the balance to the `to` address.
 func (account *account) Transfer(ctx context.Context, to common.Address, value, gasPrice *big.Int, confirmBlocks int64, sendAll bool) (*types.Transaction, error) {
-	if value == nil {
-		return nil, fmt.Errorf("value cannot be nil")
-	}
-
 	// Pre-condition check: Check if the account has enough balance
 	preConditionCheck := func() bool {
-		if value == nil {
-			return true
-		}
 		accountBalance, err := account.client.BalanceOf(ctx, account.Address())
-		return err == nil && accountBalance.Cmp(value) >= 0
+		return sendAll || err == nil && accountBalance.Cmp(value) >= 0
 	}
 
 	// Transaction: Transfer eth to address

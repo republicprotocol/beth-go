@@ -2,7 +2,6 @@ package beth
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -65,9 +64,6 @@ func (erc20 *erc20) Allowance(ctx context.Context, owner, spender common.Address
 }
 
 func (erc20 *erc20) Transfer(ctx context.Context, to common.Address, amount, gasPrice *big.Int, sendAll bool) (*types.Transaction, error) {
-	if amount == nil {
-		return nil, fmt.Errorf("value cannot be nil")
-	}
 	if sendAll {
 		balance, err := erc20.BalanceOf(ctx, erc20.account.Address())
 		if err != nil {
